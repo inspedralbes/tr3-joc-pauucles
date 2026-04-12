@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Bandera
   - BaseRoja
+  - ZonaEscalera
   layers:
   - Default
   - TransparentFX

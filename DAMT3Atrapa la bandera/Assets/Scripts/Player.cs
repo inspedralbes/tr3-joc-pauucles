@@ -6,6 +6,9 @@ public class Player : MonoBehaviour
 {
     public float moveSpeed = 5f;
     public float jumpForce = 7f;
+    public float climbSpeed = 4f;
+    public float coyoteTime = 0.2f;
+    public float jumpBufferTime = 0.2f;
     public Transform respawnPoint;
     public UIDocument uiDocument;
     public bool potMoure = true;
@@ -20,6 +23,10 @@ public class Player : MonoBehaviour
     private Collider2D col; // Referència al collider
     private float originalGravity; // Emmagatzematge de la gravetat original
     private bool isGrounded = false;
+    private bool tocantEscala = false;
+    private bool escalant = false;
+    private float coyoteTimeCounter;
+    private float jumpBufferCounter;
     public Transform banderaAgafada;
     private Transform banderaPortant; // Referència optimitzada per a la bandera
     private List<VisualElement> lifeIcons = new List<VisualElement>();
@@ -52,14 +59,33 @@ public class Player : MonoBehaviour
         if (isFrozen || !potMoure) 
         {
             rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+            
+            // RESET AFK: Si no ens podem moure, no podem estar AFK
+            if (tempsInactiu > 0)
+            {
+                tempsInactiu = 0f;
+                Color c = sr.color;
+                c.a = 1f;
+                sr.color = c;
+            }
             return;
         }
 
-        float moveInput = Input.GetAxis("Horizontal");
+        float moveInput = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
+        // Rotació visual del personatge (Flip)
+        if (moveInput > 0)
+        {
+            transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+        }
+        else if (moveInput < 0)
+        {
+            transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+        }
+
         // GESTIÓ AFK (Parpelleig)
-        if (moveInput == 0)
+        if (moveInput == 0 && !escalant)
         {
             tempsInactiu += Time.deltaTime;
             if (tempsInactiu > 3f)
@@ -81,14 +107,70 @@ public class Player : MonoBehaviour
             }
         }
 
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        // Coyote Time Counter
+        if (isGrounded)
+        {
+            coyoteTimeCounter = coyoteTime;
+        }
+        else
+        {
+            coyoteTimeCounter -= Time.deltaTime;
+        }
+
+        // Jump Buffer Counter
+        if (Input.GetButtonDown("Jump"))
+        {
+            jumpBufferCounter = jumpBufferTime;
+        }
+        else
+        {
+            jumpBufferCounter -= Time.deltaTime;
+        }
+
+        // Lògica d'Escalada
+        if (tocantEscala && (Input.GetAxisRaw("Vertical") > 0.1f || Input.GetButton("Jump")))
+        {
+            escalant = true;
+        }
+
+        // Jump Execution
+        if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f && !escalant)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            isGrounded = false; 
+            isGrounded = false;
+            jumpBufferCounter = 0f;
+            coyoteTimeCounter = 0f;
+        }
+
+        // Variable Jump Height
+        if (Input.GetButtonUp("Jump") && rb.linearVelocity.y > 0f)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * 0.5f);
+            coyoteTimeCounter = 0f;
         }
 
         // Gestió dinàmica de la posició de la bandera
         ActualitzarPosicioBandera(moveInput);
+    }
+
+    void FixedUpdate()
+    {
+        if (escalant)
+        {
+            rb.gravityScale = 0;
+            float vInput = Input.GetAxisRaw("Vertical");
+
+            if (Input.GetButton("Jump"))
+            {
+                vInput = 1f;
+            }
+
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, vInput * climbSpeed);
+        }
+        else if (!isFrozen) // Evitem sobreescriure gravityScale si estem en un estat especial (com el respawn)
+        {
+            rb.gravityScale = originalGravity;
+        }
     }
 
     private void ActualitzarPosicioBandera(float moveInput)
@@ -157,6 +239,11 @@ public class Player : MonoBehaviour
             banderaAgafada = null; 
             banderaPortant = null;
         }
+
+        if (other.CompareTag("ZonaEscalera"))
+        {
+            tocantEscala = true;
+        }
     }
 
     private void AgafarBanderaAutomàticament(GameObject objBandera)
@@ -174,6 +261,12 @@ public class Player : MonoBehaviour
 
     void OnTriggerExit2D(Collider2D other)
     {
+        if (other.CompareTag("ZonaEscalera"))
+        {
+            tocantEscala = false;
+            escalant = false;
+            rb.gravityScale = originalGravity;
+        }
     }
 
     public void WinCombat()

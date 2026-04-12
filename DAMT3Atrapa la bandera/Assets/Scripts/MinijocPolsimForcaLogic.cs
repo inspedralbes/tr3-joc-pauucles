@@ -3,119 +3,103 @@ using UnityEngine.UIElements;
 
 public class MinijocPolsimForcaLogic : MonoBehaviour
 {
-    public float puntuacioJ1 = 50f;
-    public float puntuacioJ2 = 50f;
-    public float tempsRestant = 10f;
-    public bool jocActiu = false;
+    private float puntuacioJ1 = 50f;
+    private float tempsRestant = 10f;
+    private bool jocActiu = false;
+    private bool faseRevelacio = false;
+    private float tempsRevelacio = 3f;
 
     private Label textTemps;
+    private Label textResultat;
     private VisualElement barraJ1;
-    private Player p1, p2;
+    private string _guanyador = "Empat";
 
-    public void InicialitzarUI(VisualElement root, Player player1, Player player2)
+    public void InicialitzarUI(VisualElement root)
     {
-        p1 = player1;
-        p2 = player2;
         textTemps = root.Q<Label>("TextTempsPols");
+        textResultat = root.Q<Label>("TextResultatPols");
         barraJ1 = root.Q<VisualElement>("BarraJ1Pols");
+
+        if (textResultat != null) textResultat.text = "";
         Debug.Log("UI de Polsim de Força inicialitzada.");
     }
 
     public void IniciarMinijoc()
     {
         puntuacioJ1 = 50f;
-        puntuacioJ2 = 50f;
         tempsRestant = 10f;
+        tempsRevelacio = 3f;
         jocActiu = true;
+        faseRevelacio = false;
         
-        // Actualització inicial de la UI
         ActualitzarUI();
-        
-        Debug.Log("Minijoc de Polsim de Força iniciat!");
+        if (textResultat != null) textResultat.text = "Prem ràpid!";
     }
 
     void Update()
     {
         if (!jocActiu) return;
 
-        // Gestió del temporitzador
-        tempsRestant -= Time.deltaTime;
-        if (tempsRestant <= 0)
+        if (!faseRevelacio)
         {
-            FinalitzarMinijoc();
-            return;
-        }
+            tempsRestant -= Time.deltaTime;
+            if (tempsRestant <= 0)
+            {
+                FinalitzarFaseJoc();
+                return;
+            }
 
-        // Entrada Jugador 1: Espai o Clic Esquerre
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+            // Entrada Jugador 1: Espai o Clic Esquerre
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+            {
+                ActualitzarPuntuacions(1);
+            }
+
+            // Entrada Jugador 2: Return o Clic (any click or Right Click)
+            // Task says "Prem Space, Return o clic (Input.GetMouseButtonDown(0))"
+            // Wait, if both use GetMouseButtonDown(0) it's shared.
+            // Let's use Return for J2 and Space/Click for J1.
+            if (Input.GetKeyDown(KeyCode.Return))
+            {
+                ActualitzarPuntuacions(2);
+            }
+
+            ActualitzarUI();
+        }
+        else
         {
-            ActualitzarPuntuacions(1);
+            tempsRevelacio -= Time.deltaTime;
+            if (tempsRevelacio <= 0)
+            {
+                jocActiu = false;
+                MinijocUIManager.Instance.FinalitzarCombat(_guanyador);
+            }
         }
-
-        // Entrada Jugador 2: Return o Clic Dret
-        if (Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(1))
-        {
-            ActualitzarPuntuacions(2);
-        }
-
-        // Actualització visual en cada frame
-        ActualitzarUI();
     }
 
     private void ActualitzarPuntuacions(int jugador)
     {
-        if (jugador == 1)
-        {
-            puntuacioJ1 += 2f;
-            puntuacioJ2 -= 2f;
-        }
-        else
-        {
-            puntuacioJ2 += 2f;
-            puntuacioJ1 -= 2f;
-        }
+        if (jugador == 1) puntuacioJ1 += 2f;
+        else puntuacioJ1 -= 2f;
 
-        // Clampeig entre 0 i 100
         puntuacioJ1 = Mathf.Clamp(puntuacioJ1, 0f, 100f);
-        puntuacioJ2 = Mathf.Clamp(puntuacioJ2, 0f, 100f);
     }
 
     private void ActualitzarUI()
     {
-        if (textTemps != null)
-        {
-            textTemps.text = tempsRestant.ToString("F1");
-        }
-
-        if (barraJ1 != null)
-        {
-            barraJ1.style.width = Length.Percent(puntuacioJ1);
-        }
+        if (textTemps != null) textTemps.text = $"Temps: {Mathf.Max(0, tempsRestant):F1}s";
+        if (barraJ1 != null) barraJ1.style.width = Length.Percent(puntuacioJ1);
     }
 
-    private void FinalitzarMinijoc()
+    private void FinalitzarFaseJoc()
     {
-        jocActiu = false;
-        tempsRestant = 0;
+        faseRevelacio = true;
         
-        // Assegurem que l'UI reflecteix el final
-        ActualitzarUI();
+        _guanyador = "Empat";
+        if (puntuacioJ1 > 55) _guanyador = "Jugador 1";
+        else if (puntuacioJ1 < 45) _guanyador = "Jugador 2";
 
-        string guanyador = "Empat";
-        if (puntuacioJ1 > 50) 
-        {
-            guanyador = "Jugador 1";
-            if (p1 != null) p1.WinCombat();
-            if (p2 != null) p2.LoseCombat();
-        }
-        else if (puntuacioJ2 > 50) 
-        {
-            guanyador = "Jugador 2";
-            if (p2 != null) p2.WinCombat();
-            if (p1 != null) p1.LoseCombat();
-        }
-
-        Debug.Log("Minijoc finalitzat! Guanyador: " + guanyador);
-        MinijocUIManager.Instance.FinalitzarCombat(guanyador);
+        if (textResultat != null) 
+            textResultat.text = $"Final! Guanya {_guanyador}!";
     }
 }

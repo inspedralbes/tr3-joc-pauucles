@@ -1,20 +1,49 @@
-public enum ResultatCablePelat { Success, Early, Late }
+using UnityEngine;
+using UnityEngine.UIElements;
 
-public class MinijocCablePelatLogic
+public class MinijocCablePelatLogic : MonoBehaviour
 {
-    public static ResultatCablePelat AvaluarReflex(float tempsClick, float iniciFinestra, float fiFinestra)
+    private bool enCurs = false;
+
+    public void InicialitzarUI(VisualElement root)
     {
-        if (tempsClick < iniciFinestra)
+        VisualElement zonaInici = root.Q<VisualElement>("#ZonaInici");
+        VisualElement zonaMeta = root.Q<VisualElement>("#ZonaMeta");
+        VisualElement fonsPerill = root.Q<VisualElement>("#FonsPerill");
+
+        if (zonaInici != null)
         {
-            return ResultatCablePelat.Early;
+            zonaInici.RegisterCallback<PointerEnterEvent>(evt => 
+            {
+                enCurs = true;
+                Debug.Log("Cable iniciat!");
+            });
         }
-        else if (tempsClick > fiFinestra)
+
+        if (zonaMeta != null)
         {
-            return ResultatCablePelat.Late;
+            zonaMeta.RegisterCallback<PointerEnterEvent>(evt => 
+            {
+                if (enCurs)
+                {
+                    enCurs = false;
+                    Debug.Log("Minijoc Cable Pelat: Victòria Jugador 1");
+                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 1");
+                }
+            });
         }
-        else
+
+        if (fonsPerill != null)
         {
-            return ResultatCablePelat.Success;
+            fonsPerill.RegisterCallback<PointerEnterEvent>(evt => 
+            {
+                if (enCurs)
+                {
+                    enCurs = false;
+                    Debug.Log("Minijoc Cable Pelat: Derrota! Guanya Jugador 2");
+                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 2");
+                }
+            });
         }
     }
 }

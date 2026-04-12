@@ -1,6 +1,9 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <ui:Label name="TextResultat" style="align-self: center; width: auto; height: auto; font-size: 30px; color: rgb(255, 255, 255);" />
-    <ui:VisualElement name="ContenidorPPTLLS" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0.47); flex-direction: column; width: 227px; flex-wrap: wrap; align-items: stretch; justify-content: center;">
+    <ui:VisualElement name="ContenidorPPTLLS" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0); flex-direction: column; width: 1120px; flex-wrap: wrap; align-items: stretch; justify-content: center; align-self: auto; color: rgb(0, 0, 0);">
+        <ui:Label text="PEDRA, PAPER, TISORES, LLANGARDAIX, SPOCK" name="TitolPPTLLS" style="width: 911px; font-size: 32px; -unity-text-align: upper-center; color: rgb(255, 255, 255); -unity-font-style: bold;" />
+        <ui:Label text="Trieu la vostra opció abans que s&apos;acabi el temps!" name="InstruccionsPPTLLS" style="font-size: 18px; color: rgb(255, 255, 255); -unity-font-style: bold;" />
+        <ui:Label text="5.0" name="TextTempsPPTLLS" style="font-size: 32px; -unity-font-style: bold; color: rgb(255, 255, 255); -unity-text-align: upper-right;" />
+        <ui:Label text="-" name="TextResultatPPTLLS" style="font-size: 32px; color: rgb(255, 255, 255); -unity-text-align: upper-center; -unity-font-style: bold;" />
         <ui:Button text="Pedra" name="BtnPedra" />
         <ui:Button text="Paper" name="BtnPaper" />
         <ui:Button text="Tisores" name="BtnTisora" />
@@ -8,10 +11,17 @@
         <ui:Button text="Spock" name="BtnSpock" />
     </ui:VisualElement>
     <ui:VisualElement name="ContenidorParellsSenars" style="flex-grow: 1;">
+        <ui:Label text="MATES RÀPIDES!" name="TitolMates" style="font-size: 32px; -unity-font-style: bold; color: rgb(255, 255, 255); -unity-text-align: upper-center;" />
+        <ui:Label text="Calcula ràpid: El resultat és Parell o Senar?" name="InstruccionsMates" style="font-size: 18px; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="5 + 7" name="TextOperacio" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="-" name="TextResultatMates" style="font-size: 32px; color: rgb(255, 255, 255); -unity-font-style: bold; -unity-text-align: upper-center;" />
         <ui:Button text="Parells" name="BtnParells" />
         <ui:Button text="Senars" name="BtnSenars" />
     </ui:VisualElement>
     <ui:VisualElement name="ContenidorAturaBarra" style="flex-grow: 1;">
+        <ui:Label text="ATURA LA BARRA!" name="TitolAturaBarra" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="Atura la fletxa just a la zona groga! (Prem Espai)" name="InstruccionsAturaBarra" style="font-size: 18px; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="Label" name="TextResultatAturaBarra" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
         <ui:VisualElement name="FonsBarra" style="flex-grow: 0; width: 500px; height: 50px; justify-content: flex-start; align-self: center; background-color: rgb(0, 255, 0); max-height: 50px; position: relative;">
             <ui:VisualElement name="ZonaObjectiu" style="flex-grow: 1; width: 30px; -unity-background-image-tint-color: rgb(255, 255, 0); position: absolute; height: 50px;" />
             <ui:VisualElement name="Fletxa" style="flex-grow: 1; width: 10px; height: 50px; background-color: rgb(255, 4, 4); position: absolute;" />
@@ -19,9 +29,30 @@
         <ui:Button text="Stop" name="BtnAturar" />
     </ui:VisualElement>
     <ui:VisualElement name="ContenidorPolsForca" style="flex-grow: 1;">
+        <ui:Label text="POLS DE FORÇA!" name="TitolPolsForca" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="Premeu ràpid ña tecla SPACE o INTRO o el RATOLI" name="InstruccionsPolsForca" style="font-size: 18px; -unity-font-style: bold; color: rgb(255, 255, 255);" />
         <ui:Label text="10.0" name="TextTempsPols" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
-        <ui:VisualElement name="FonsBarraPols" style="flex-grow: 1; width: 100%; height: 50px; background-color: rgb(1, 125, 248);">
+        <ui:Label text="-" name="TextResultatPols" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:VisualElement name="FonsBarraPols" style="flex-grow: 0; width: 100%; height: 40px; background-color: rgb(1, 125, 248); align-self: center;">
             <ui:VisualElement name="BarraJ1Pols" style="flex-grow: 1; width: 50%; height: 100%; background-color: rgb(255, 0, 0);" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="ContenidorAcaparamentMirades" style="flex-grow: 1; align-items: center; justify-content: center;">
+        <ui:Label text="DUEL DE MIRADES!" name="TitolMirades" style="font-size: 32px; color: rgb(255, 255, 255); -unity-font-style: bold;" />
+        <ui:Label text="Tria la teva direcció abans que s&apos;acabi el temps!" name="InstruccionsMirades" style="font-size: 18px; -unity-font-style: bold; color: rgb(255, 254, 254);" />
+        <ui:Label text="5.0" name="TextTempsMirades" style="font-size: 32px; -unity-font-style: bold; color: rgb(255, 255, 255); -unity-text-align: upper-right; white-space: normal; width: 1098px;" />
+        <ui:Label text="-" name="TextResultatMirades" style="font-size: 20px; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:VisualElement style="flex-grow: 1; -unity-text-align: upper-center; align-items: center;">
+            <ui:VisualElement style="flex-grow: 1;">
+                <ui:Button text="Amunt" name="BtnAmunt" />
+            </ui:VisualElement>
+            <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
+                <ui:Button text="Esquerra" name="BtnEsquerra" />
+                <ui:Button text="Dreta" name="BtnDreta" style="width: 100px;" />
+            </ui:VisualElement>
+            <ui:VisualElement style="flex-grow: 1;">
+                <ui:Button text="Avall" name="BtnAvall" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
