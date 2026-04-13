@@ -30,3 +30,6 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
+
+# Variables de entorno
+.env

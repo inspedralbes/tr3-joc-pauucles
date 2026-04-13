@@ -79,7 +79,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -93,7 +93,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 100
+  spritePixelsToUnits: 32
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -117,7 +117,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -171,10 +171,10 @@ TextureImporter:
       name: Interface windows_0
       rect:
         serializedVersion: 2
-        x: 219
-        y: 822
-        width: 243
-        height: 299
+        x: 220
+        y: 823
+        width: 241
+        height: 297
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -193,10 +193,10 @@ TextureImporter:
       name: Interface windows_1
       rect:
         serializedVersion: 2
-        x: 498
-        y: 823
-        width: 241
-        height: 298
+        x: 499
+        y: 824
+        width: 239
+        height: 296
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -215,10 +215,10 @@ TextureImporter:
       name: Interface windows_2
       rect:
         serializedVersion: 2
-        x: 779
-        y: 823
-        width: 242
-        height: 298
+        x: 780
+        y: 824
+        width: 240
+        height: 296
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -237,10 +237,10 @@ TextureImporter:
       name: Interface windows_3
       rect:
         serializedVersion: 2
-        x: 1062
-        y: 822
-        width: 237
-        height: 299
+        x: 1063
+        y: 823
+        width: 235
+        height: 297
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -259,10 +259,10 @@ TextureImporter:
       name: Interface windows_4
       rect:
         serializedVersion: 2
-        x: 1342
-        y: 822
-        width: 237
-        height: 299
+        x: 1343
+        y: 823
+        width: 235
+        height: 297
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -281,10 +281,10 @@ TextureImporter:
       name: Interface windows_5
       rect:
         serializedVersion: 2
-        x: 222
-        y: 502
-        width: 237
-        height: 300
+        x: 223
+        y: 503
+        width: 235
+        height: 298
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -303,10 +303,10 @@ TextureImporter:
       name: Interface windows_6
       rect:
         serializedVersion: 2
-        x: 502
-        y: 502
-        width: 317
-        height: 300
+        x: 503
+        y: 503
+        width: 315
+        height: 298
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -325,10 +325,10 @@ TextureImporter:
       name: Interface windows_7
       rect:
         serializedVersion: 2
-        x: 862
-        y: 518
-        width: 317
-        height: 284
+        x: 863
+        y: 519
+        width: 315
+        height: 282
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -347,10 +347,10 @@ TextureImporter:
       name: Interface windows_8
       rect:
         serializedVersion: 2
-        x: 1222
-        y: 502
-        width: 357
-        height: 300
+        x: 1223
+        y: 503
+        width: 355
+        height: 298
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -369,10 +369,10 @@ TextureImporter:
       name: Interface windows_9
       rect:
         serializedVersion: 2
-        x: 222
-        y: 193
-        width: 201
-        height: 274
+        x: 223
+        y: 194
+        width: 199
+        height: 272
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -391,10 +391,10 @@ TextureImporter:
       name: Interface windows_10
       rect:
         serializedVersion: 2
-        x: 464
-        y: 293
-        width: 259
-        height: 174
+        x: 465
+        y: 294
+        width: 257
+        height: 172
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -413,10 +413,10 @@ TextureImporter:
       name: Interface windows_11
       rect:
         serializedVersion: 2
-        x: 769
-        y: 166
-        width: 238
-        height: 300
+        x: 770
+        y: 167
+        width: 236
+        height: 298
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -435,10 +435,10 @@ TextureImporter:
       name: Interface windows_12
       rect:
         serializedVersion: 2
-        x: 1042
-        y: 167
-        width: 259
-        height: 300
+        x: 1043
+        y: 168
+        width: 257
+        height: 298
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -457,10 +457,10 @@ TextureImporter:
       name: Interface windows_13
       rect:
         serializedVersion: 2
-        x: 1338
-        y: 238
-        width: 243
-        height: 229
+        x: 1339
+        y: 239
+        width: 241
+        height: 227
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -479,10 +479,10 @@ TextureImporter:
       name: Interface windows_14
       rect:
         serializedVersion: 2
-        x: 464
-        y: 59
-        width: 259
-        height: 223
+        x: 465
+        y: 60
+        width: 257
+        height: 221
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -501,7 +501,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: ac12f5b07aad3ca4181d597af8ec345b
     internalID: 0
     vertices: []
     indices: 
