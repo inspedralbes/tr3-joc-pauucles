@@ -31,6 +31,10 @@ const gameSchema = new mongoose.Schema({
     winner: {
         type: String,
         default: null
+    },
+    maxPlayers: {
+        type: Number,
+        default: 4
     }
 }, { timestamps: true });
 

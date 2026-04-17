@@ -4,21 +4,30 @@ class UserController {
     }
 
     async register(req, res) {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Falten camps obligatoris' });
+        }
+
         try {
-            const { username, password } = req.body;
-            if (!username || !password) {
-                return res.status(400).json({ error: 'Username and password are required' });
-            }
-
             const user = await this.userService.register(username, password);
-            
-            // Convert to object and remove password
-            const userResponse = user.toObject ? user.toObject() : { ...user };
-            delete userResponse.password;
-
-            res.status(201).json(userResponse);
+            res.status(201).json(user);
         } catch (error) {
             res.status(400).json({ error: error.message });
+        }
+    }
+
+    async login(req, res) {
+        const { username, password } = req.body;
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Falten camps obligatoris' });
+        }
+
+        try {
+            const user = await this.userService.login(username, password);
+            res.status(200).json(user);
+        } catch (error) {
+            res.status(401).json({ error: error.message });
         }
     }
 }

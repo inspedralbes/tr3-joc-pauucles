@@ -34,6 +34,10 @@ class GameRepositoryInMemory {
         };
         return this.games[index];
     }
+
+    async findAllWaiting() {
+        return this.games.filter(game => game.status === 'waiting');
+    }
 }
 
 module.exports = GameRepositoryInMemory;

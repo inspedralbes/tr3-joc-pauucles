@@ -7,7 +7,10 @@ class UserRepositoryInMemory {
         const newUser = {
             ...userData,
             coins: userData.coins ?? 0,
-            skins: userData.skins ?? ['base']
+            skins: userData.skins ?? ['base'],
+            gamesPlayed: userData.gamesPlayed ?? 0,
+            wins: userData.wins ?? 0,
+            losses: userData.losses ?? 0
         };
         this.users.push(newUser);
         return newUser;

@@ -7,10 +7,9 @@ public class Player : MonoBehaviour
     public float moveSpeed = 5f;
     public float jumpForce = 7f;
     public float climbSpeed = 4f;
-    public float coyoteTime = 0.2f;
-    public float jumpBufferTime = 0.2f;
     public Transform respawnPoint;
     public UIDocument uiDocument;
+    public Nametag elMeuNametag;
     public bool potMoure = true;
     public bool potCombatre = true;
     public int idJugador = 1; // 1 per a J1, 2 per a J2
@@ -20,26 +19,26 @@ public class Player : MonoBehaviour
     private bool isInvulnerable = false;
     private Rigidbody2D rb;
     private SpriteRenderer sr;
+    private Animator anim;
     private Collider2D col; // Referència al collider
-    private float originalGravity; // Emmagatzematge de la gravetat original
+    private float defaultGravity; // Emmagatzematge de la gravetat original
     private bool isGrounded = false;
-    private bool tocantEscala = false;
-    private bool escalant = false;
+    private bool isNearLadder = false;
+    private bool isClimbing = false;
     private float coyoteTimeCounter;
     private float jumpBufferCounter;
     public Transform banderaAgafada;
-    private Transform banderaPortant; // Referència optimitzada per a la bandera
     private List<VisualElement> lifeIcons = new List<VisualElement>();
-    private float tempsInactiu = 0f;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
+        anim = GetComponent<Animator>();
         col = GetComponent<Collider2D>();
         
         rb.freezeRotation = true; 
-        originalGravity = rb.gravityScale; // Guardem el valor inicial
+        defaultGravity = rb.gravityScale; // Guardem el valor inicial
 
         if (uiDocument != null)
         {
@@ -51,23 +50,24 @@ public class Player : MonoBehaviour
             }
         }
 
-        UpdateLivesUI();
+        // Configuració del Nametag si existeixen dades de sessió
+        if (elMeuNametag != null && !string.IsNullOrEmpty(WebSocketClient.Username))
+        {
+            elMeuNametag.Configurar(WebSocketClient.Username, WebSocketClient.ColorName);
+            
+            // També aprofitem per configurar l'idJugador si és necessari
+            if (WebSocketClient.Team.ToLower() == "rojo" || WebSocketClient.Team.ToLower() == "vermell") idJugador = 1;
+            else if (WebSocketClient.Team.ToLower() == "azul" || WebSocketClient.Team.ToLower() == "blau") idJugador = 2;
+        }
     }
 
     void Update()
     {
+        isGrounded = CheckGrounded();
+
         if (isFrozen || !potMoure) 
         {
             rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
-            
-            // RESET AFK: Si no ens podem moure, no podem estar AFK
-            if (tempsInactiu > 0)
-            {
-                tempsInactiu = 0f;
-                Color c = sr.color;
-                c.a = 1f;
-                sr.color = c;
-            }
             return;
         }
 
@@ -84,127 +84,55 @@ public class Player : MonoBehaviour
             transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
         }
 
-        // GESTIÓ AFK (Parpelleig)
-        if (moveInput == 0 && !escalant)
-        {
-            tempsInactiu += Time.deltaTime;
-            if (tempsInactiu > 3f)
-            {
-                float alpha = Mathf.PingPong(Time.time * 4f, 1f);
-                Color c = sr.color;
-                c.a = alpha;
-                sr.color = c;
-            }
-        }
-        else
-        {
-            if (tempsInactiu > 0)
-            {
-                tempsInactiu = 0f;
-                Color c = sr.color;
-                c.a = 1f;
-                sr.color = c;
-            }
-        }
-
-        // Coyote Time Counter
-        if (isGrounded)
-        {
-            coyoteTimeCounter = coyoteTime;
-        }
-        else
-        {
-            coyoteTimeCounter -= Time.deltaTime;
-        }
-
-        // Jump Buffer Counter
-        if (Input.GetButtonDown("Jump"))
-        {
-            jumpBufferCounter = jumpBufferTime;
-        }
-        else
-        {
-            jumpBufferCounter -= Time.deltaTime;
-        }
-
         // Lògica d'Escalada
-        if (tocantEscala && (Input.GetAxisRaw("Vertical") > 0.1f || Input.GetButton("Jump")))
+        float verticalInput = Input.GetAxisRaw("Vertical");
+        if (isNearLadder && Mathf.Abs(verticalInput) > 0.1f)
         {
-            escalant = true;
+            isClimbing = true;
+        }
+
+        // Jump from Ladder
+        if (isClimbing && Input.GetKeyDown(KeyCode.Space))
+        {
+            isClimbing = false;
+            rb.gravityScale = defaultGravity;
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
 
         // Jump Execution
-        if (jumpBufferCounter > 0f && coyoteTimeCounter > 0f && !escalant)
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isClimbing)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             isGrounded = false;
-            jumpBufferCounter = 0f;
-            coyoteTimeCounter = 0f;
         }
 
-        // Variable Jump Height
-        if (Input.GetButtonUp("Jump") && rb.linearVelocity.y > 0f)
+        // Actualització de l'Animator
+        if (anim != null)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * 0.5f);
-            coyoteTimeCounter = 0f;
+            anim.SetFloat("yVelocity", rb.linearVelocity.y);
+            anim.SetBool("isRunning", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
+            anim.SetBool("isGrounded", isGrounded);
+            anim.SetBool("isClimbing", isClimbing);
         }
-
-        // Gestió dinàmica de la posició de la bandera
-        ActualitzarPosicioBandera(moveInput);
     }
 
     void FixedUpdate()
     {
-        if (escalant)
+        if (isClimbing)
         {
-            rb.gravityScale = 0;
+            rb.gravityScale = 0f;
             float vInput = Input.GetAxisRaw("Vertical");
-
-            if (Input.GetButton("Jump"))
-            {
-                vInput = 1f;
-            }
-
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, vInput * climbSpeed);
         }
         else if (!isFrozen) // Evitem sobreescriure gravityScale si estem en un estat especial (com el respawn)
         {
-            rb.gravityScale = originalGravity;
-        }
-    }
-
-    private void ActualitzarPosicioBandera(float moveInput)
-    {
-        // Busquem la bandera si no la tenim (optimitzat)
-        if (banderaPortant == null)
-        {
-            foreach (Transform child in transform)
-            {
-                if (child.CompareTag("Bandera"))
-                {
-                    banderaPortant = child;
-                    break;
-                }
-            }
-        }
-
-        if (banderaPortant != null)
-        {
-            float targetX = banderaPortant.localPosition.x;
-
-            if (moveInput > 0) targetX = -0.8f; // Moviment dreta -> bandera esquerra
-            else if (moveInput < 0) targetX = 0.8f; // Moviment esquerra -> bandera dreta
-
-            // Mantindrem l'Y a 0 per deixar espai al futur nametag a sobre del cap (Y=0.8 era l'anterior)
-            Vector3 posicioDesitjada = new Vector3(targetX, 0, 0);
-            banderaPortant.localPosition = Vector3.Lerp(banderaPortant.localPosition, posicioDesitjada, Time.deltaTime * 6f);
+            rb.gravityScale = defaultGravity;
         }
     }
 
     void OnCollisionEnter2D(Collision2D collision)
     {
         Debug.Log("He xocat contra: " + collision.gameObject.name + " amb Tag: " + collision.gameObject.tag);
-        isGrounded = true; 
 
         if (collision.gameObject.CompareTag("Player"))
         {
@@ -214,59 +142,74 @@ public class Player : MonoBehaviour
                 MinijocUIManager.Instance.ShowUI(this, opponent);
             }
         }
-        else if (collision.gameObject.CompareTag("Bandera") && banderaAgafada == null)
-        {
-            AgafarBanderaAutomàticament(collision.gameObject);
-        }
     }
 
     void OnCollisionExit2D(Collision2D collision)
     {
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (other.CompareTag("Bandera") && banderaAgafada == null)
+        if (collision.CompareTag("Bandera") && banderaAgafada == null)
         {
-            AgafarBanderaAutomàticament(other.gameObject);
+            Bandera scriptB = collision.GetComponentInParent<Bandera>();
+            if (scriptB != null)
+            {
+                banderaAgafada = scriptB.transform;
+                Collider2D meuCol = GetComponent<Collider2D>();
+                Collider2D[] dinoCols = scriptB.GetComponentsInChildren<Collider2D>();
+                foreach (Collider2D c in dinoCols)
+                {
+                    if (c != null && meuCol != null)
+                    {
+                        Physics2D.IgnoreCollision(meuCol, c, true);
+                    }
+                }
+                scriptB.ComençarASeguir(this.transform);
+            }
         }
 
-        if (other.CompareTag("BaseRoja") && banderaAgafada != null)
+        if (collision.CompareTag("BaseRoja") && banderaAgafada != null)
         {
             Debug.Log("¡EL EQUIPO ROJO HA CAPTURADO LA BANDERA Y GANA LA PARTIDA!");
 
             Destroy(banderaAgafada.gameObject);
             banderaAgafada = null; 
-            banderaPortant = null;
         }
 
-        if (other.CompareTag("ZonaEscalera"))
+        if (collision.CompareTag("ZonaEscalera"))
         {
-            tocantEscala = true;
+            isNearLadder = true;
         }
-    }
-
-    private void AgafarBanderaAutomàticament(GameObject objBandera)
-    {
-        Debug.Log(this.name + " ha recollit la bandera automàticament!");
-
-        Bandera scriptB = objBandera.GetComponent<Bandera>();
-        if (scriptB != null) scriptB.fugint = false;
-
-        Collider2D colB = objBandera.GetComponent<Collider2D>();
-        if (colB != null) colB.enabled = false;
-
-        AgafarBandera(objBandera.transform);
     }
 
     void OnTriggerExit2D(Collider2D other)
     {
         if (other.CompareTag("ZonaEscalera"))
         {
-            tocantEscala = false;
-            escalant = false;
-            rb.gravityScale = originalGravity;
+            isNearLadder = false;
+            isClimbing = false;
+            rb.gravityScale = defaultGravity;
         }
+    }
+
+    public void InicialitzarJugador(string username, string team)
+    {
+        Debug.Log($"Inicialitzant jugador {username} a l'equip {team}");
+        
+        if (uiDocument != null)
+        {
+            VisualElement root = uiDocument.rootVisualElement;
+            Label nameLabel = root.Q<Label>("NomUsuari"); // Busquem el label del nametag
+            if (nameLabel != null)
+            {
+                nameLabel.text = username;
+            }
+        }
+
+        // Configurem l'idJugador segons l'equip rebut
+        if (team.ToLower() == "rojo") idJugador = 1;
+        else if (team.ToLower() == "azul") idJugador = 2;
     }
 
     public void WinCombat()
@@ -279,6 +222,7 @@ public class Player : MonoBehaviour
         if (isInvulnerable) return;
 
         lives--;
+        if (anim != null) anim.SetTrigger("hurt");
         UpdateLivesUI();
 
         if (lives <= 0)
@@ -306,52 +250,16 @@ public class Player : MonoBehaviour
         StartCoroutine(CombatCooldownCoroutine(4f));
     }
 
-    public void RobarBandera(Player perdedor)
-    {
-        // FIX: Cerca global de la bandera
-        GameObject banderaObj = GameObject.FindGameObjectWithTag("Bandera");
-        
-        if (banderaObj != null)
-        {
-            if (perdedor != null) perdedor.DeixarBandera();
-            this.AgafarBandera(banderaObj.transform);
-            Debug.Log($"{this.name} ha robat la bandera!");
-        }
-    }
-
-    public void AgafarBandera(Transform bandera)
-    {
-        banderaAgafada = bandera;
-        banderaPortant = bandera;
-        banderaAgafada.SetParent(this.transform);
-        
-        // Inicialització lateral (esquerra per defecte)
-        banderaAgafada.localPosition = new Vector3(-0.8f, 0, 0);
-        banderaAgafada.localScale = new Vector3(3f, 3f, 1f); // Forcem escala correcta
-        
-        Rigidbody2D rbBandera = banderaAgafada.GetComponent<Rigidbody2D>();
-        if (rbBandera != null)
-        {
-            // FIX: Rigidbody2D.isKinematic is obsolete. Use bodyType = RigidbodyType2D.Kinematic.
-            rbBandera.bodyType = RigidbodyType2D.Kinematic;
-            rbBandera.linearVelocity = Vector2.zero;
-        }
-    }
-
     public void DeixarBandera()
     {
         if (banderaAgafada != null)
         {
-            Rigidbody2D rbBandera = banderaAgafada.GetComponent<Rigidbody2D>();
-            if (rbBandera != null)
+            Bandera scriptB = banderaAgafada.GetComponent<Bandera>();
+            if (scriptB != null)
             {
-                // FIX: Rigidbody2D.isKinematic is obsolete. Use bodyType = RigidbodyType2D.Dynamic.
-                rbBandera.bodyType = RigidbodyType2D.Dynamic;
+                scriptB.DeixarDeSeguir();
             }
-            
-            banderaAgafada.SetParent(null);
             banderaAgafada = null;
-            banderaPortant = null;
         }
     }
 
@@ -403,12 +311,13 @@ public class Player : MonoBehaviour
         sr.color = originalColor;
         isFrozen = false;
         if (col != null) col.isTrigger = false;
-        rb.gravityScale = originalGravity; 
+        rb.gravityScale = defaultGravity; 
         potMoure = true; 
     }
 
     private System.Collections.IEnumerator HandleRespawnCoroutine(int duration)
     {
+        if (anim != null) anim.SetBool("isDead", true);
         potMoure = false;
         isFrozen = true;
         if (col != null) col.isTrigger = true; 
@@ -429,7 +338,21 @@ public class Player : MonoBehaviour
         sr.color = originalColor;
         isFrozen = false;
         if (col != null) col.isTrigger = false;
-        rb.gravityScale = originalGravity;
+        rb.gravityScale = defaultGravity;
+        if (anim != null) anim.SetBool("isDead", false);
         potMoure = true;
+    }
+
+    private bool CheckGrounded()
+    {
+        Bounds bounds = col.bounds;
+        Vector2 origin = new Vector2(bounds.center.x, bounds.min.y);
+        Vector2 size = new Vector2(bounds.size.x * 0.8f, 0.1f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(origin, size, 0f);
+        foreach (Collider2D hit in hits)
+        {
+            if (hit != col && !hit.isTrigger) return true;
+        }
+        return false;
     }
 }
