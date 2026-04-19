@@ -12,6 +12,7 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
     private Label textTemps;
     private Label textResultat;
     private VisualElement barraJ1;
+    private Button btnPrem;
     private string _guanyador = "Empat";
 
     public void InicialitzarUI(VisualElement root)
@@ -19,6 +20,9 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         textTemps = root.Q<Label>("TextTempsPols");
         textResultat = root.Q<Label>("TextResultatPols");
         barraJ1 = root.Q<VisualElement>("BarraJ1Pols");
+        btnPrem = root.Q<Button>("BtnPrem");
+
+        if (btnPrem != null) { btnPrem.clicked -= () => ActualitzarPuntuacions(1); btnPrem.clicked += () => ActualitzarPuntuacions(1); }
 
         if (textResultat != null) textResultat.text = "";
         Debug.Log("UI de Polsim de Força inicialitzada.");
@@ -79,10 +83,35 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
     private void ActualitzarPuntuacions(int jugador)
     {
-        if (jugador == 1) puntuacioJ1 += 2f;
+        if (jugador == 1) 
+        {
+            puntuacioJ1 += 2f;
+            // Envia clic local al rival
+            if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocUpdate("CLICK");
+        }
         else puntuacioJ1 -= 2f;
 
         puntuacioJ1 = Mathf.Clamp(puntuacioJ1, 0f, 100f);
+    }
+
+    public void RebreActualitzacioXarxa(string data)
+    {
+        if (jocActiu && !faseRevelacio && data == "CLICK")
+        {
+            // El rival ha fet clic, nosaltres perdem terreny (per nosaltres el rival és el jugador 2)
+            ActualitzarPuntuacions(2);
+            ActualitzarUI();
+        }
+    }
+
+    public void RebreResultatXarxa(string winner)
+    {
+        // En aquest joc el resultat es calcula per temps, però per seguretat:
+        if (jocActiu && !faseRevelacio && winner == "RIVAL_WIN")
+        {
+            puntuacioJ1 = 0;
+            FinalitzarFaseJoc();
+        }
     }
 
     private void ActualitzarUI()

@@ -5,87 +5,102 @@ public class Bandera : MonoBehaviour
     private Vector3 posicioInicial;
     public bool fugint = false;
     private Collider2D col;
+    public string equipPropietari;
 
-    [Header("Mascota Settings")]
-    public Transform targetSeguiment;
-    public float velocitatSeguiment = 3f;
-    public float distanciaMinima = 1.5f;
-    public float forçaSaltDino = 5f;
     private Rigidbody2D rb;
     private Animator anim;
+    private SpriteRenderer mySprite;
+    private Vector3 ultimaPosicio;
 
     void Start()
     {
         posicioInicial = transform.position;
+        ultimaPosicio = transform.position;
         col = GetComponent<Collider2D>();
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
-    }
-
-    public void ComençarASeguir(Transform target)
-    {
-        targetSeguiment = target;
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (rb != null) rb.bodyType = RigidbodyType2D.Dynamic;
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = true;
+        mySprite = GetComponent<SpriteRenderer>();
     }
 
     public void DeixarDeSeguir()
     {
-        targetSeguiment = null;
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (rb != null)
+        transform.SetParent(null);
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (transform.parent != null) return;
+
+        Debug.Log($"[Bandera] Xoc detectat amb: {collision.gameObject.name}, Tag: {collision.tag}");
+
+        if (collision.CompareTag("Player"))
         {
-            rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+            Player player = collision.GetComponent<Player>();
+            if (player != null && player.banderaAgafada == null)
+            {
+                // Obtenim l'equip del jugador directament de la variable sincronitzada
+                string equipJugador = player.equip;
+
+                Debug.Log($"[Bandera] Equip Jugador: {equipJugador} vs Equip Bandera: {equipPropietari}");
+
+                // Verificació d'equips: Si són diferents, es pot capturar
+                if (!string.IsNullOrEmpty(equipJugador) && equipJugador != equipPropietari)
+                {
+                    // CAPTURA JERÀRQUICA: Ens fem fills del jugador
+                    transform.SetParent(collision.transform);
+                    transform.localPosition = new Vector3(mySprite.flipX ? 0.5f : -0.5f, 0f, 0f);
+                    
+                    // Registrem la bandera al jugador
+                    player.banderaAgafada = this.transform;
+
+                    // Desactivem física perquè es mogui només per la jerarquia
+                    if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
+                    
+                    // Ignorem col·lisions físiques entre el jugador i la bandera
+                    Collider2D playerCol = player.GetComponent<Collider2D>();
+                    if (col != null && playerCol != null)
+                    {
+                        Physics2D.IgnoreCollision(playerCol, col, true);
+                    }
+
+                    Debug.Log("[Bandera] CAPTURADA!");
+                }
+                else
+                {
+                    Debug.Log($"[Bandera] Ignorant col·lisió: El jugador pertany al mateix equip ({equipPropietari}) o equip no definit.");
+                }
+            }
         }
     }
 
     void Update()
     {
-        if (targetSeguiment != null)
+        // Lògica reactiva quan la bandera és portada per un jugador
+        if (transform.parent != null)
         {
-            float distanciaHoritzontal = targetSeguiment.position.x - transform.position.x;
-            float direccioX = Mathf.Sign(distanciaHoritzontal);
-            bool isGrounded = CheckGrounded();
+            // 1) Detecció de moviment
+            bool sestaMovent = Vector3.Distance(transform.position, ultimaPosicio) > 0.002f;
+            if (anim != null && anim.runtimeAnimatorController != null) anim.SetBool("isWalking", sestaMovent);
 
-            if (Mathf.Abs(distanciaHoritzontal) > distanciaMinima)
+            // 2) Sincronització de Flip i Posició com a mascota
+            SpriteRenderer parentSprite = transform.parent.GetComponentInChildren<SpriteRenderer>();
+            if (parentSprite != null && mySprite != null)
             {
-                // Apliquem velocitat horitzontal
-                rb.linearVelocity = new Vector2(direccioX * velocitatSeguiment, rb.linearVelocity.y);
+                mySprite.flipX = parentSprite.flipX;
                 
-                // Detecció d'obstacles (murs o escales) cap endavant
-                RaycastHit2D hit = Physics2D.Raycast(transform.position, new Vector2(direccioX, 0), 1f);
-                if (hit.collider != null && !hit.collider.isTrigger && isGrounded)
-                {
-                    // Saltem l'obstacle
-                    rb.linearVelocity = new Vector2(rb.linearVelocity.x, forçaSaltDino);
-                }
+                // Ajustem la posició local segons on miri el pare per seguir-lo naturalment
+                float offsetX = mySprite.flipX ? 0.5f : -0.5f;
+                transform.localPosition = new Vector3(offsetX, 0f, 0f);
             }
-            else
-            {
-                // Ens aturem horitzontalment si estem a prop
-                rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
-            }
-
-            // Lògica d'animació
-            bool isRunning = Mathf.Abs(rb.linearVelocity.x) > 0.1f;
-            if (anim != null)
-            {
-                anim.SetBool("isRunning", isRunning);
-                anim.SetBool("isSad", false);
-            }
-
-            // Flip visual segons la direcció del moviment
-            if (rb.linearVelocity.x > 0.1f) transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
-            else if (rb.linearVelocity.x < -0.1f) transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
         }
-        else if (fugint)
+
+        // Si no som fills de ningú i estem fugint cap a la base
+        if (transform.parent == null && fugint)
         {
-            // Moviment cap a la posició inicial
+            // Moviment cap a la posicio inicial
             transform.position = Vector3.MoveTowards(transform.position, posicioInicial, 4f * Time.deltaTime);
 
-            if (anim != null)
+            if (anim != null && anim.runtimeAnimatorController != null)
             {
                 anim.SetBool("isRunning", true);
                 anim.SetBool("isSad", false);
@@ -102,26 +117,15 @@ public class Bandera : MonoBehaviour
                 fugint = false;
                 if (col != null)
                 {
-                    col.isTrigger = false;
+                    col.isTrigger = true; // Assegurem que segueixi sent trigger
                     col.enabled = true;
                 }
-                if (anim != null) anim.SetBool("isRunning", false);
+                if (anim != null && anim.runtimeAnimatorController != null) anim.SetBool("isRunning", false);
                 Debug.Log("La bandera ha tornat a la base.");
             }
         }
-    }
 
-    private bool CheckGrounded()
-    {
-        if (col == null) return false;
-        Bounds bounds = col.bounds;
-        Vector2 origin = new Vector2(bounds.center.x, bounds.min.y);
-        Vector2 size = new Vector2(bounds.size.x * 0.8f, 0.1f);
-        Collider2D[] hits = Physics2D.OverlapBoxAll(origin, size, 0f);
-        foreach (Collider2D hit in hits)
-        {
-            if (hit.gameObject != gameObject && !hit.isTrigger) return true;
-        }
-        return false;
+        // Guardem la posició per al següent frame
+        ultimaPosicio = transform.position;
     }
 }

@@ -30,6 +30,20 @@ class UserController {
             res.status(401).json({ error: error.message });
         }
     }
+
+    async updateSkin(req, res) {
+        const { username, skinName } = req.body;
+        if (!username || !skinName) {
+            return res.status(400).json({ error: 'Falten camps obligatoris' });
+        }
+
+        try {
+            const user = await this.userService.updateSkin(username, skinName);
+            res.status(200).json(user);
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = UserController;

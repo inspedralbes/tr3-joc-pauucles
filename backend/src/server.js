@@ -56,6 +56,16 @@ wss.on("connection", (ws) => {
                 // Avisem al lobby sempre (per actualitzar comptador de jugadors o eliminar sala)
                 await gameController.broadcastRoomUpdates();
             }
+
+            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER") {
+                // Broadcast simple a tots els clients connectats
+                const message = JSON.stringify(msg);
+                wss.clients.forEach((client) => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(message);
+                    }
+                });
+            }
         } catch (error) {
             console.error("Error processant missatge WebSocket:", error);
         }

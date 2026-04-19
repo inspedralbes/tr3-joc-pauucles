@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 5531388568430919141}
   - component: {fileID: 5109421025359307013}
   - component: {fileID: 6873855477286362431}
+  - component: {fileID: 2024568707868514991}
   m_Layer: 0
   m_Name: Biker
   m_TagString: Player
@@ -172,6 +173,7 @@ MonoBehaviour:
   climbSpeed: 5
   respawnPoint: {fileID: 0}
   uiDocument: {fileID: 0}
+  elMeuNametag: {fileID: 0}
   potMoure: 1
   potCombatre: 0
   idJugador: 1
@@ -198,3 +200,18 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &2024568707868514991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3152287187864450558}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b741f2d9f7c41647aadcb81394aadea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sendRate: 0.1
+  moveThreshold: 0.05
+  interpolationSpeed: 15

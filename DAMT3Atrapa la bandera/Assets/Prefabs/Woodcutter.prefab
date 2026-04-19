@@ -14,9 +14,10 @@ GameObject:
   - component: {fileID: 6489248160008360029}
   - component: {fileID: 2312883516527716933}
   - component: {fileID: 8132587521204535869}
+  - component: {fileID: 7054682573013132199}
   m_Layer: 0
   m_Name: Woodcutter
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -200,6 +201,21 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &7054682573013132199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5148405588638774856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b741f2d9f7c41647aadcb81394aadea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sendRate: 0.1
+  moveThreshold: 0.05
+  interpolationSpeed: 15
 --- !u!1 &5235960989235253276
 GameObject:
   m_ObjectHideFlags: 0
@@ -381,7 +397,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Jugador
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

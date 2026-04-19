@@ -39,30 +39,53 @@ public class MinijocUIManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else { Destroy(gameObject); return; }
 
+        // 1.1 i 1.2: Obtenir referència al component UIDocument
         _uiDocument = GetComponent<UIDocument>();
-        if (_uiDocument == null) Debug.LogError("MinijocUIManager: No s'ha trobat el component 'UIDocument'.");
+
+        // 1.3: Comprovar si el component existeix i avisar si no
+        if (_uiDocument == null)
+        {
+            Debug.LogError("[MinijocUI] Error: No s'ha trobat el component 'UIDocument' a MinijocUIManager.");
+        }
         else
         {
             _uiDocument.enabled = true;
-            if (_uiDocument.rootVisualElement != null) _uiDocument.rootVisualElement.style.display = DisplayStyle.None;
+            if (_uiDocument.rootVisualElement != null)
+            {
+                _uiDocument.rootVisualElement.style.display = DisplayStyle.None;
+            }
         }
     }
 
     private void Start()
     {
-        AmagarTotsElsContenidors();
+        if (_uiDocument != null) AmagarTotsElsMinijocs(_uiDocument.rootVisualElement);
     }
 
-    public void ShowUI(Player p1, Player p2)
+    public void IniciarMinijoc(GameObject g1, GameObject g2, int forcarGameIndex = -1)
     {
+        if (_uiDocument == null) return;
+        
+        // 3.2 Reset de visibilitat estricte abans de res
+        var root = _uiDocument.rootVisualElement;
+        if (root == null) return;
+        
+        AmagarTotsElsMinijocs(root);
+        root.style.display = DisplayStyle.Flex;
+        gameObject.SetActive(true);
+        
+        Debug.Log($"[MinijocUI] Iniciant minijoc sincronitzat (Index: {forcarGameIndex})");
+
         minijocActiu = true;
 
-        _jugador1 = p1;
-        _jugador2 = p2;
-        _jugador1.potMoure = false;
-        _jugador2.potMoure = false;
+        // Obtenir components Player i bloquejar moviment
+        _jugador1 = g1.GetComponent<Player>();
+        _jugador2 = g2.GetComponent<Player>();
 
-        if (_jugador1.CompareTag("Player") && _jugador1.GetComponent<Player>().banderaAgafada != null)
+        if (_jugador1 != null) _jugador1.potMoure = false;
+        if (_jugador2 != null) _jugador2.potMoure = false;
+
+        if (_jugador1 != null && _jugador1.CompareTag("Player") && _jugador1.banderaAgafada != null)
         {
             _defensor = _jugador1;
             _atacant = _jugador2;
@@ -73,69 +96,65 @@ public class MinijocUIManager : MonoBehaviour
             _atacant = _jugador1;
         }
 
-        if (_uiDocument == null || _uiDocument.rootVisualElement == null) { HideUI(); return; }
-
-        _uiDocument.rootVisualElement.style.display = DisplayStyle.Flex;
-        var root = _uiDocument.rootVisualElement;
-
         _backgroundOverlay = root.Q<VisualElement>("Background");
+        if (_backgroundOverlay != null) _backgroundOverlay.style.display = DisplayStyle.Flex;
+        
         _textResultat = root.Q<Label>("TextResultat");
-        _contenidorPPTLLS = root.Q<VisualElement>("ContenidorPPTLLS");
-        _contenidorParellsSenars = root.Q<VisualElement>("ContenidorParellsSenars");
-        _contenidorAturaBarra = root.Q<VisualElement>("ContenidorAturaBarra");
-        _contenidorPolsForca = root.Q<VisualElement>("ContenidorPolsForca");
-        _contenidorAcaparamentMirades = root.Q<VisualElement>("ContenidorAcaparamentMirades");
-
         if (_textResultat != null) _textResultat.text = "Iniciant combat...";
 
-        AmagarTotsElsContenidors();
-
-        _activeMinigameId = Random.Range(1, 7);
-        string nomJoc = _nomsMinijocs[_activeMinigameId];
+        // 3.1 i 3.3: Selecció de joc autoritaria
+        _activeMinigameId = (forcarGameIndex > 0) ? forcarGameIndex : Random.Range(1, 7);
+        
+        string nomJoc = (_activeMinigameId < _nomsMinijocs.Length) ? _nomsMinijocs[_activeMinigameId] : "Desconegut";
         Debug.Log("Ruleta: Toca jugar a " + nomJoc + " (ID: " + _activeMinigameId + ")");
 
         switch (_activeMinigameId)
         {
             case 1:
-                if (_contenidorPPTLLS != null)
+                var contPPT = root.Q<VisualElement>("ContenidorPPTLLS");
+                if (contPPT != null)
                 {
-                    _contenidorPPTLLS.style.display = DisplayStyle.Flex;
+                    contPPT.style.display = DisplayStyle.Flex;
                     MinijocPPTLLSLogic logic = GetComponent<MinijocPPTLLSLogic>();
                     if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
                 }
                 else ResolverEmpatDirecte();
                 break;
             case 2:
-                if (_contenidorParellsSenars != null)
+                var contParells = root.Q<VisualElement>("ContenidorParellsSenars");
+                if (contParells != null)
                 {
-                    _contenidorParellsSenars.style.display = DisplayStyle.Flex;
+                    contParells.style.display = DisplayStyle.Flex;
                     MinijocParellsSenarsLogic logic = GetComponent<MinijocParellsSenarsLogic>();
-                    if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
+                    if (logic != null) { logic.IniciarMinijoc(); }
                 }
                 else ResolverEmpatDirecte();
                 break;
             case 3:
-                if (_contenidorAturaBarra != null)
+                var contAtura = root.Q<VisualElement>("ContenidorAturaBarra");
+                if (contAtura != null)
                 {
-                    _contenidorAturaBarra.style.display = DisplayStyle.Flex;
+                    contAtura.style.display = DisplayStyle.Flex;
                     MinijocAturaBarraLogic logic = GetComponent<MinijocAturaBarraLogic>();
                     if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
                 }
                 else ResolverEmpatDirecte();
                 break;
             case 5:
-                if (_contenidorPolsForca != null)
+                var contPols = root.Q<VisualElement>("ContenidorPolsForca");
+                if (contPols != null)
                 {
-                    _contenidorPolsForca.style.display = DisplayStyle.Flex;
+                    contPols.style.display = DisplayStyle.Flex;
                     MinijocPolsimForcaLogic logic = GetComponent<MinijocPolsimForcaLogic>();
                     if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
                 }
                 else ResolverEmpatDirecte();
                 break;
             case 6:
-                if (_contenidorAcaparamentMirades != null)
+                var contAcaparament = root.Q<VisualElement>("ContenidorAcaparamentMirades");
+                if (contAcaparament != null)
                 {
-                    _contenidorAcaparamentMirades.style.display = DisplayStyle.Flex;
+                    contAcaparament.style.display = DisplayStyle.Flex;
                     MinijocAcaparamentMiradesLogic logic = GetComponent<MinijocAcaparamentMiradesLogic>();
                     if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
                 }
@@ -147,23 +166,60 @@ public class MinijocUIManager : MonoBehaviour
         }
     }
 
-    private void AmagarTotsElsContenidors()
+    private void AmagarTotsElsMinijocs(VisualElement root)
     {
-        if (_backgroundOverlay != null) _backgroundOverlay.style.display = DisplayStyle.None;
-        if (_contenidorPPTLLS != null) _contenidorPPTLLS.style.display = DisplayStyle.None;
-        if (_contenidorParellsSenars != null) _contenidorParellsSenars.style.display = DisplayStyle.None;
-        if (_contenidorAturaBarra != null) _contenidorAturaBarra.style.display = DisplayStyle.None;
-        if (_contenidorPolsForca != null) _contenidorPolsForca.style.display = DisplayStyle.None;
-        if (_contenidorAcaparamentMirades != null) _contenidorAcaparamentMirades.style.display = DisplayStyle.None;
+        if (root == null) return;
+
+        string[] contenedores = { 
+            "ContenidorPPTLLS", 
+            "ContenidorParellsSenars", 
+            "ContenidorAturaBarra", 
+            "ContenidorPolsForca", 
+            "ContenidorAcaparamentMirades",
+            "Background"
+        };
+
+        foreach (var id in contenedores)
+        {
+            var el = root.Q<VisualElement>(id);
+            if (el != null) el.style.display = DisplayStyle.None;
+        }
     }
 
     public void FinalitzarCombat(string nomGuanyador)
     {
-        Debug.Log("Finalitzant combat. Guanyador: " + nomGuanyador);
+        Debug.Log("[MinijocUI] Finalitzant combat. Guanyador: " + nomGuanyador);
         
-        AmagarTotsElsContenidors();
         if (_uiDocument != null && _uiDocument.rootVisualElement != null) 
-            _uiDocument.rootVisualElement.style.display = DisplayStyle.None;
+        {
+            var root = _uiDocument.rootVisualElement;
+            AmagarTotsElsMinijocs(root);
+            root.style.display = DisplayStyle.None;
+            Debug.Log("[MinijocUI] UI amagada (None) després del combat.");
+        }
+
+        // 3.1 Tancar el GameObject del Manager
+        gameObject.SetActive(false);
+
+        // 3.2 Notificar al jugador local del resultat
+        bool localHaGuanyat = (nomGuanyador == "Jugador 1"); // Assumim J1 és el local en aquesta arquitectura
+        
+        Player localPlayer = null;
+        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        foreach (var p in allPlayers)
+        {
+            if (p.GetComponent<RemotePlayer>() == null) // El que no té RemotePlayer és el local
+            {
+                localPlayer = p;
+                break;
+            }
+        }
+
+        if (localPlayer != null)
+        {
+            if (localHaGuanyat) localPlayer.GuanyarMinijoc();
+            else localPlayer.PerdreMinijoc();
+        }
 
         if (nomGuanyador == "Empat")
         {
@@ -207,9 +263,48 @@ public class MinijocUIManager : MonoBehaviour
         minijocActiu = false;
         if (_jugador1 != null) _jugador1.FinalitzarCombat();
         if (_jugador2 != null) _jugador2.FinalitzarCombat();
-        AmagarTotsElsContenidors();
-        if (_uiDocument != null && _uiDocument.rootVisualElement != null) _uiDocument.rootVisualElement.style.display = DisplayStyle.None;
+        
+        if (_uiDocument != null && _uiDocument.rootVisualElement != null) 
+        {
+            var root = _uiDocument.rootVisualElement;
+            AmagarTotsElsMinijocs(root);
+            root.style.display = DisplayStyle.None;
+            Debug.Log("[MinijocUI] UI amagada (None) manualment/forçadament.");
+        }
     }
+
+    // --- PONT DE SINCRONITZACIÓ DE XARXA ---
+    public void RebreActualitzacioXarxa(string data)
+    {
+        if (!minijocActiu) return;
+        
+        // Passem el missatge a la lògica activa segons l'ID
+        switch (_activeMinigameId)
+        {
+            case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreActualitzacioXarxa(data); break;
+            case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreActualitzacioXarxa(data); break;
+            // Altres minijocs poden ignorar o implementar segons calgui
+        }
+    }
+
+    public void RebreResultatXarxa(string winner)
+    {
+        if (!minijocActiu) return;
+
+        Debug.Log($"[MinijocUI] Rebut resultat de xarxa. Guanyador remot: {winner}");
+        
+        // En jocs de velocitat, el primer que arriba mana
+        switch (_activeMinigameId)
+        {
+            case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreResultatXarxa(winner); break;
+            case 2: GetComponent<MinijocParellsSenarsLogic>()?.RebreResultatXarxa(winner); break;
+            case 3: GetComponent<MinijocAturaBarraLogic>()?.RebreResultatXarxa(winner); break;
+            case 4: GetComponent<MinijocCablePelatLogic>()?.RebreResultatXarxa(winner); break;
+            case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreResultatXarxa(winner); break;
+            case 6: GetComponent<MinijocAcaparamentMiradesLogic>()?.RebreResultatXarxa(winner); break;
+        }
+    }
+    // ---------------------------------------
 
     private void ResolverEmpatDirecte() { Debug.Log("Minijoc no disponible. Empat."); HideUI(); }
 }

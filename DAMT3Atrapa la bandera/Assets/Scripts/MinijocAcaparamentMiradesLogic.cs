@@ -46,6 +46,20 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
         if (_textResultat != null) _textResultat.text = "";
     }
 
+    public void RebreResultatXarxa(string winner)
+    {
+        if (_jocActiu && !_faseRevelacio && winner == "RIVAL_WIN")
+        {
+            _faseRevelacio = true;
+            _guanyador = "Jugador 2";
+
+            if (_textResultat != null)
+            {
+                _textResultat.text = "EL RIVAL HA ESTAT MÉS RÀPID!";
+            }
+        }
+    }
+
     private void RegistrarTriar(string direccio)
     {
         if (!_jocActiu || _faseRevelacio) return;

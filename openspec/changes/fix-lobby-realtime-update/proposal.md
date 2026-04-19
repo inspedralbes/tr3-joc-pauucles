@@ -1,23 +1,24 @@
 ## Why
 
-Actualment, quan un jugador crea una sala nova, la resta de jugadors que es troben al 'LOBBY' no reben cap notificació i han de refrescar manualment (o esperar a un interval) per veure la nova sala disponible. Això perjudica l'experiència d'usuari i la rapidesa per començar partides.
+Actualment, la sincronització en temps real de la interfície d'usuari (UI) del Lobby a Unity és deficient. Els canvis en l'estat de les sales (com ara la creació de noves sales, l'entrada o sortida de jugadors) no es reflecteixen de forma immediata per a tots els usuaris connectats. A més, existeix el risc que les actualitzacions visualitzades fallin silenciosament si s'intenten executar fora del fil principal (Main Thread) d'Unity.
 
 ## What Changes
 
-- **Backend (Node.js)**: Al mètode de creació de partides (GameController.js), s'afegirà un broadcast per WebSocket immediatament després d'un `save` exitós a MongoDB.
-- **Broadcast**: El missatge serà de tipus `ACTUALITZAR_SALES` i contindrà la llista actualitzada de totes les sales amb status `waiting`.
-- **Frontend (Unity)**: Els clients que ja escolten aquest missatge veuran la llista actualitzada de forma reactiva.
+- **Subscripció a esdeveniments de sala**: S'assegurarà que el client Unity processi correctament els missatges `ACTUALITZAR_SALES` i `ROOM_UPDATED` enviats pel backend.
+- **Actualització visual immediata**: Es refactoritzaran les funcions de repintat de la UI (`ConfigurarLlistaPartides` i `OmplirLlistaJugadors`) per forçar un refresc visual (Rebuild/Refresh) després de cada actualització de dades.
+- **Garantia de Main Thread**: Es validarà que totes les crides a la API de `UnityEngine.UIElements` derivades de missatges de xarxa estiguin encapsulades en el mètode `EnqueueMainThread`.
+- **Neteja de redundància**: Es consolidarà la lògica de recepció de missatges per evitar que múltiples components processin el mateix esdeveniment de forma desarticulada.
 
 ## Capabilities
 
 ### New Capabilities
-- `realtime-room-discovery`: Permet que els jugadors al lobby descobreixin noves sales de joc de forma immediata mitjançant actualitzacions per WebSockets.
+- `realtime-lobby-sync`: Sincronització reactiva de la llista de sales i la informació dels jugadors a la sala d'espera.
 
 ### Modified Capabilities
 - Cap.
 
 ## Impact
 
-- **Backend**: `GameController.js` o el servei de gestió de partides.
-- **Frontend**: El lobby de Unity respondrà de forma immediata a la creació de sales per part d'altres usuaris.
-- **WebSocket**: S'incrementa lleugerament el trànsit de missatges broadcast per assegurar la consistència del lobby.
+- `MenuManager.cs`: Canvis en el processament de missatges i gestió de la UI.
+- `WebSocketClient.cs`: Revisió per evitar col·lisions de processament.
+- Experiència de l'usuari: Millora dràstica en la percepció de fluïdesa i consistència en el Lobby.

@@ -13,6 +13,11 @@ public class Player : MonoBehaviour
     public bool potMoure = true;
     public bool potCombatre = true;
     public int idJugador = 1; // 1 per a J1, 2 per a J2
+    public string equip; // "A" o "B"
+
+    // Variables per a la sincronització determinista (sense xarxa)
+    private static float ultimXoc = 0f;
+    private static int comptadorCombats = 0;
 
     private int lives = 5;
     private bool isFrozen = false;
@@ -29,6 +34,7 @@ public class Player : MonoBehaviour
     private float jumpBufferCounter;
     public Transform banderaAgafada;
     private List<VisualElement> lifeIcons = new List<VisualElement>();
+    private Vector3 posAbansDeGuanyar;
 
     void Start()
     {
@@ -77,11 +83,11 @@ public class Player : MonoBehaviour
         // Rotació visual del personatge (Flip)
         if (moveInput > 0)
         {
-            transform.localScale = new Vector3(Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+            sr.flipX = false;
         }
         else if (moveInput < 0)
         {
-            transform.localScale = new Vector3(-Mathf.Abs(transform.localScale.x), transform.localScale.y, transform.localScale.z);
+            sr.flipX = true;
         }
 
         // Lògica d'Escalada
@@ -132,51 +138,89 @@ public class Player : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log("He xocat contra: " + collision.gameObject.name + " amb Tag: " + collision.gameObject.tag);
-
         if (collision.gameObject.CompareTag("Player"))
         {
+            // 2.1 Tallafocs temporal per evitar doble dispar d'event (Physics Jitter)
+            if (Time.time - ultimXoc < 3f) return;
+
+            RemotePlayer rp = collision.gameObject.GetComponent<RemotePlayer>();
+            if (rp == null || string.IsNullOrEmpty(rp.username)) return;
+
             Player opponent = collision.gameObject.GetComponent<Player>();
-            if (opponent != null && MinijocUIManager.Instance != null && !MinijocUIManager.Instance.minijocActiu && potMoure && opponent.potMoure && potCombatre && opponent.potCombatre)
+            if (opponent != null && opponent.equip != this.equip)
             {
-                MinijocUIManager.Instance.ShowUI(this, opponent);
+                // 2.2 Sincronització Determinista Pura
+                ultimXoc = Time.time;
+                comptadorCombats++;
+
+                string localName = WebSocketClient.LocalUsername;
+                string opponentName = rp.username;
+
+                // 2.4 Clau idèntica per a tots dos participants
+                string clau = string.Compare(localName, opponentName) < 0 ? localName + opponentName : opponentName + localName;
+                
+                // 2.5 Generar l'índex del joc (ex: % 5 si tenim 5 jocs)
+                int gameIndex = Mathf.Abs((clau + comptadorCombats).GetHashCode()) % 5 + 1;
+
+                Debug.Log($"[SISTEMA] Combat determinista #{comptadorCombats}. Clau: {clau}. Índex: {gameIndex}");
+
+                // 3.1 Aturar moviment
+                this.potMoure = false;
+                opponent.potMoure = false;
+
+                // 3.2 Obrir UI IMMEDIATAMENT (tots dos clients actuen com a Host local)
+                var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
+                if (managers.Length > 0)
+                {
+                    var ui = managers[0];
+                    ui.gameObject.SetActive(true);
+                    ui.IniciarMinijoc(this.gameObject, collision.gameObject, gameIndex);
+                }
             }
         }
     }
-
     void OnCollisionExit2D(Collision2D collision)
     {
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag("Bandera") && banderaAgafada == null)
+        // 1.2 i 1.3: Evitar que els clons (jugadors remots) disparin triggers locals (especialment la victòria)
+        if (gameObject.name.Contains("(Clone)") || GetComponent<RemotePlayer>() != null)
         {
-            Bandera scriptB = collision.GetComponentInParent<Bandera>();
-            if (scriptB != null)
+            return;
+        }
+
+        // Lògica de Bases (Punts de Spawn)
+        if (collision.name.Contains("PuntSpawn_Equip"))
+        {
+            string equipoBase = collision.name.Contains("Equip1") ? "A" : "B";
+            
+            // 2.2 Ignorar si la base és de l'enemic
+            if (equipoBase != this.equip) 
             {
-                banderaAgafada = scriptB.transform;
-                Collider2D meuCol = GetComponent<Collider2D>();
-                Collider2D[] dinoCols = scriptB.GetComponentsInChildren<Collider2D>();
-                foreach (Collider2D c in dinoCols)
-                {
-                    if (c != null && meuCol != null)
-                    {
-                        Physics2D.IgnoreCollision(meuCol, c, true);
-                    }
-                }
-                scriptB.ComençarASeguir(this.transform);
+                Debug.Log($"[Player] Passant per sobre de la base enemiga ({equipoBase}). Ignorant.");
+                return;
             }
+
+            // 2.3 Validar lliurament de bandera a la base pròpia
+            if (banderaAgafada != null)
+            {
+                Debug.Log("[Player] Has entrat a la teva base amb la bandera! Finalitzant partida.");
+                
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.FinalitzarPartida(true);
+                }
+            }
+            else
+            {
+                Debug.Log("[Player] Estàs a la teva base, però no portes cap bandera.");
+            }
+            return;
         }
 
-        if (collision.CompareTag("BaseRoja") && banderaAgafada != null)
-        {
-            Debug.Log("¡EL EQUIPO ROJO HA CAPTURADO LA BANDERA Y GANA LA PARTIDA!");
-
-            Destroy(banderaAgafada.gameObject);
-            banderaAgafada = null; 
-        }
-
+        // Altres triggers (escales, etc.)
         if (collision.CompareTag("ZonaEscalera"))
         {
             isNearLadder = true;
@@ -185,11 +229,16 @@ public class Player : MonoBehaviour
 
     void OnTriggerExit2D(Collider2D other)
     {
+        if (other == null || other.gameObject == null) return;
+
         if (other.CompareTag("ZonaEscalera"))
         {
             isNearLadder = false;
             isClimbing = false;
-            rb.gravityScale = defaultGravity;
+            if (rb != null)
+            {
+                rb.gravityScale = defaultGravity;
+            }
         }
     }
 
@@ -214,12 +263,15 @@ public class Player : MonoBehaviour
 
     public void WinCombat()
     {
+        GuanyarMinijoc();
         StartCoroutine(HandleWinCoroutine(5));
     }
 
     public void LoseCombat()
     {
         if (isInvulnerable) return;
+
+        PerdreMinijoc();
 
         lives--;
         if (anim != null) anim.SetTrigger("hurt");
@@ -233,6 +285,35 @@ public class Player : MonoBehaviour
         {
             AplicarCastigDerrota();
         }
+    }
+
+    public void GuanyarMinijoc()
+    {
+        Debug.Log("[Player] Victoria en minijoc. Enviant Senyal X (9999).");
+        posAbansDeGuanyar = transform.position;
+        transform.position = new Vector3(9999f, 9999f, 0);
+        StartCoroutine(TornarPosicio());
+        potMoure = true;
+    }
+
+    private System.Collections.IEnumerator TornarPosicio()
+    {
+        yield return new WaitForSeconds(0.2f);
+        transform.position = posAbansDeGuanyar;
+    }
+
+    public void PerdreMinijoc()
+    {
+        Debug.Log("[Player] Derrota detectada. Iniciant STUN.");
+        StartCoroutine(RutinaStun(3f));
+    }
+
+    private System.Collections.IEnumerator RutinaStun(float temps)
+    {
+        potMoure = false;
+        yield return new WaitForSeconds(temps);
+        potMoure = true;
+        Debug.Log("[Player] STUN finalitzat.");
     }
 
     public void FinalitzarCombat()

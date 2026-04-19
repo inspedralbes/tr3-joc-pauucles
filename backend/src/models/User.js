@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema({
         type: [String],
         default: ['base']
     },
+    skinEquipada: {
+        type: String,
+        default: 'Woodcutter'
+    },
     gamesPlayed: {
         type: Number,
         default: 0

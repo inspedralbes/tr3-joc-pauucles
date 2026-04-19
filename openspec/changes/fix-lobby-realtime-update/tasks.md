@@ -1,14 +1,19 @@
-## 1. Verificació de la Lògica de Creació
+## 1. Millora de la Subscripció de Missatges (Unity)
 
-- [ ] 1.1 Validar que `GameController.js` crida correctament a `broadcastRoomUpdates()` en finalitzar el mètode `create`.
-- [ ] 1.2 Validar que el `GameService.js` retorna la llista de sales filtrada per `waiting` a la petició de llistat global.
+- [x] 1.1 Revisar el mètode `AlRebreActualitzacioSales` a `MenuManager.cs` per assegurar que processa correctament tant la llista global com les dades de sala específica.
+- [x] 1.2 Garantir que tots els blocs de processament de dades estiguin protegits amb `try-catch` per evitar que un error de parseig talli el thread.
 
-## 2. Reforç de Broadcasts
+## 2. Refactorització del Fil Principal (Unity)
 
-- [ ] 2.1 Assegurar-se que el tipus de missatge enviat és `room_list` (per mantenir compatibilitat amb Unity).
-- [ ] 2.2 Verificar que el broadcast s'emet a tots els clients actius en el servidor WebSocket (`wss.clients`).
+- [x] 2.1 Moure les crides a `ConfigurarLlistaPartides` i `OmplirLlistaJugadors` estrictament dins de blocs `EnqueueMainThread`.
+- [x] 2.2 Verificar que el mètode `Update` de `MenuManager` processa la cua `_executionQueue` en cada frame.
 
-## 3. Proves d'Integració
+## 3. Consolidació de la UI Reactiva (Unity)
 
-- [ ] 3.1 Provar la creació d'una sala des d'un client i verificar la recepció automàtica en un segon client.
-- [ ] 3.2 Confirmar que no hi ha retards significatius en l'actualització visual del lobby a Unity.
+- [x] 3.1 Actualitzar `ConfigurarLlistaPartides` per cridar a `llistaPartides.Rebuild()` immediatament després d'assignar la font de dades.
+- [x] 3.2 Actualitzar `OmplirLlistaJugadors` per cridar a `llistaJugadorsSala.Rebuild()` immediatament després d'assignar la font de dades.
+- [x] 3.3 Assegurar que si el missatge `ROOM_UPDATED` indica que la sala ja no existeix (room null), el jugador és redirigit visualment al Lobby.
+
+## 4. Neteja de Redundància
+
+- [x] 4.1 Desactivar o redirigir el processament de missatges de Lobby a `WebSocketClient.cs` cap a `MenuManager.cs` per evitar inconsistències d'estat.

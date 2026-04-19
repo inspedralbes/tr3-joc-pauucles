@@ -37,7 +37,20 @@ class UserService {
 
         return {
             id: user._id,
-            username: user.username
+            username: user.username,
+            skinEquipada: user.skinEquipada
+        };
+    }
+
+    async updateSkin(username, skinName) {
+        const user = await this.userRepository.updateSkin(username, skinName);
+        if (!user) {
+            throw new Error('Usuari no trobat');
+        }
+        return {
+            id: user._id,
+            username: user.username,
+            skinEquipada: user.skinEquipada
         };
     }
 }

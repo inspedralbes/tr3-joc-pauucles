@@ -5,6 +5,16 @@ public class Nametag : MonoBehaviour
 {
     public TextMeshProUGUI textNom;
 
+    void Start()
+    {
+        // 1.2 Forçar que el Canvas del nametag estigui per sobre de tot
+        Canvas c = GetComponent<Canvas>();
+        if (c != null) c.sortingOrder = 10;
+
+        // 1.3 Posicionar una mica per davant en l'eix Z per evitar parpelleig o quedar darrere
+        transform.localPosition = new Vector3(0, 1.2f, -0.1f);
+    }
+
     public void Configurar(string nom, string colorNom)
     {
         if (textNom != null)

@@ -13,6 +13,7 @@
     <ui:VisualElement name="ContenidorParellsSenars" style="flex-grow: 1;">
         <ui:Label text="MATES RÀPIDES!" name="TitolMates" style="font-size: 32px; -unity-font-style: bold; color: rgb(255, 255, 255); -unity-text-align: upper-center;" />
         <ui:Label text="Calcula ràpid: El resultat és Parell o Senar?" name="InstruccionsMates" style="font-size: 18px; -unity-font-style: bold; color: rgb(255, 255, 255);" />
+        <ui:Label text="5.0" name="TextTempsMates" style="font-size: 32px; -unity-font-style: bold; color: rgb(255, 255, 255); -unity-text-align: upper-right;" />
         <ui:Label text="5 + 7" name="TextOperacio" style="font-size: 32px; -unity-text-align: upper-center; -unity-font-style: bold; color: rgb(255, 255, 255);" />
         <ui:Label text="-" name="TextResultatMates" style="font-size: 32px; color: rgb(255, 255, 255); -unity-font-style: bold; -unity-text-align: upper-center;" />
         <ui:Button text="Parells" name="BtnParells" />

@@ -6,6 +6,7 @@ public class MinijocAturaBarraLogic : MonoBehaviour
     private VisualElement _fletxa;
     private VisualElement _zonaObjectiu;
     private Label _textResultat;
+    private Button _btnAturar;
 
     private bool _jocActiu = false;
     private bool _faseRevelacio = false;
@@ -21,6 +22,9 @@ public class MinijocAturaBarraLogic : MonoBehaviour
         _fletxa = root.Q<VisualElement>("Fletxa");
         _zonaObjectiu = root.Q<VisualElement>("ZonaObjectiu");
         _textResultat = root.Q<Label>("TextResultatAturaBarra");
+        _btnAturar = root.Q<Button>("BtnAturar");
+
+        if (_btnAturar != null) { _btnAturar.clicked -= Aturar; _btnAturar.clicked += Aturar; }
 
         if (_textResultat != null) _textResultat.text = "";
     }
@@ -85,6 +89,30 @@ public class MinijocAturaBarraLogic : MonoBehaviour
         if (_textResultat != null)
         {
             _textResultat.text = dins ? "DINS! Guanya Jugador 1" : "FORA! Guanya Jugador 2";
+        }
+
+        // --- SINCRONITZACIÓ ---
+        // Si hem guanyat localment, ho enviem a la xarxa
+        if (dins && MenuManager.Instance != null)
+        {
+            MenuManager.Instance.EnviarMinijocResult("RIVAL_WIN"); // El rival rebrà que jo he guanyat
+        }
+    }
+
+    public void RebreResultatXarxa(string winner)
+    {
+        if (!_jocActiu || _faseRevelacio) return;
+
+        // Si el rival ens diu que ha guanyat, nosaltres perdem immediatament
+        if (winner == "RIVAL_WIN")
+        {
+            _faseRevelacio = true;
+            _guanyador = "Jugador 2"; // Per nosaltres el guanyador és el rival
+
+            if (_textResultat != null)
+            {
+                _textResultat.text = "EL RIVAL HA ESTAT MÉS RÀPID!";
+            }
         }
     }
 }

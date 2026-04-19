@@ -1,24 +1,32 @@
 ## Context
 
-L'arquitectura actual ja disposa d'un servidor WebSocket (`wss`) injectat al `GameController.js`. Existeix un mètode `broadcastRoomUpdates()` que envia el llistat de sales a tots els clients connectats. Tot i això, aquest mètode ja s'està cridant en la creació i unió de sales. El problema detectat és que Unity espera un tipus de missatge específic o bé la sincronització no s'està disparant correctament en el flux de treball real.
+L'arquitectura actual utilitza `NativeWebSocket` per a la comunicació asíncrona. Tot i que `MenuManager.cs` disposa d'un mètode `EnqueueMainThread`, algunes actualitzacions visualitzades podrien estar fallant perquè el mètode `Rebuild()` de les `ListView` no s'està cridant en el moment adequat o perquè les referències de la UI es tornen obsoletes després d'una desconnexió parcial. També s'ha detectat redundància entre `MenuManager` i `WebSocketClient`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Assegurar que la creació d'una sala invoqui l'actualització global.
-- Garantir que el payload del missatge coincideixi amb el que el client d'Unity espera per repintar la llista.
+- Garantir que el Lobby és 100% reactiu a esdeveniments externs.
+- Eliminar bloquejos visuals causats per l'accés a la UI des de fils secundaris.
+- Refrescar tant la llista global de partides com la llista interna de jugadors de la sala d'espera.
 
 **Non-Goals:**
-- No es modificarà la base de dades MongoDB.
-- No es canviarà el protocol de comunicació (es manté WebSocket pur).
+- Implementar un sistema complet de reconnexió (es farà en un futur canvi).
+- Refer el disseny UXML de les llistes.
 
 ## Decisions
 
-- **Reutilització de `broadcastRoomUpdates`**: S'ha verificat que el mètode ja existeix i envia un missatge de tipus `room_list`. Es mantindrà aquesta nomenclatura per coherència amb el frontend.
-- **Tipus de Missatge**: Tot i que la petició demanava `ACTUALITZAR_SALES`, el codi actual de Unity i el backend utilitzen `room_list`. Es mantindrà `room_list` al codi però s'assegurarà que el disparador (trigger) sigui immediatament posterior a l'escriptura a la BD.
-- **Optimització de Cerca**: El mètode `listWaitingGames()` del `GameService` s'assegurarà de retornar només sales amb l'status `waiting`.
+### 1. Ús sistemàtic del Dispatcher (EnqueueMainThread)
+Tota la lògica continguda a `AlRebreActualitzacioSales` (a `MenuManager.cs`) s'ha de revisar per assegurar que qualsevol accés a VisualElements (labels, llistes, botons) estigui dins de `EnqueueMainThread(() => { ... })`.
+- **Racional**: Unity UI Toolkit no és thread-safe. Un intent d'accés des del fil del WebSocket provoca fallades silencioses.
+
+### 2. Refresc forçat de ListView
+A les funcions `ConfigurarLlistaPartides` i `OmplirLlistaJugadors`, s'ha d'assignar la nova `itemsSource` i cridar immediatament a `Rebuild()` dins del fil principal.
+- **Racional**: Assignar la font de dades no sempre activa el repintat automàtic si la referència de l'array no ha canviat prou per als observadors d'Unity.
+
+### 3. Gestió de missatges JSON
+Es millorarà el parseig de JSON per gestionar els tipus `ACTUALITZAR_SALES` i `ROOM_UPDATED` de forma robusta, assegurant que els IDs de sala coincideixin abans d'actualitzar la sala d'espera.
 
 ## Risks / Trade-offs
 
-- **[Risc] Sobrecàrrega del servidor** → Si hi ha molts jugadors creant sales simultàniament, el broadcast massiu pot consumir amplada de banda. → **[Mitigació]** El payload és petit (només dades resumides de les sales waiting).
-- **[Risc] Desconnexió de clients** → Els clients que perdin la connexió no rebran el broadcast. → **[Mitigació]** El client de Unity ha de tenir un mecanisme de reconnexió o refresc manual (no inclòs en aquest canvi específic).
+- **[Risk]** Alta freqüència de missatges podria saturar la cua del fil principal. -> **Mitigation**: Els missatges de lobby són poc freqüents (unions/sortides/creacions); el risc és baix.
+- **[Trade-off]** Consolidar la lògica pot requerir canvis en `WebSocketClient.cs`, el que podria afectar temporalment la lògica de moviment si no es fa amb cura.

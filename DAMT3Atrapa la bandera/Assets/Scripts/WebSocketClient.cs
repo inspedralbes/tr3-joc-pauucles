@@ -1,145 +1,138 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using System;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using NativeWebSocket;
 
 public class WebSocketClient : MonoBehaviour
 {
+    public static WebSocketClient Instance;
+
     public static string Username;
     public static string Team;
     public static string ColorName;
     public static string LocalUsername;
+    public static string RoomId;
 
-    private ClientWebSocket ws = new ClientWebSocket();
-    private CancellationTokenSource cts = new CancellationTokenSource();
+    private WebSocket websocket;
     private string serverUrl = "ws://localhost:3000";
+
+    // Cua d'execució per al fil principal
+    private readonly Queue<Action> _executionQueue = new Queue<Action>();
+
+    public void EnqueueMainThread(Action action)
+    {
+        lock (_executionQueue)
+        {
+            _executionQueue.Enqueue(action);
+        }
+    }
 
     private void Awake()
     {
-        DontDestroyOnLoad(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
-
-    private string pendingUsername;
-    private string pendingTeam;
-    private bool hasPendingData = false;
-    private bool shouldStartGame = false;
 
     async void Start()
     {
-        try
+        websocket = new WebSocket(serverUrl);
+
+        websocket.OnOpen += () =>
         {
-            await ws.ConnectAsync(new Uri(serverUrl), cts.Token);
             Debug.Log("Connexió WebSocket establerta amb " + serverUrl);
-            _ = ReceiveLoop();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("Error en connectar WebSocket: " + e.Message);
-        }
-    }
+        };
 
-    private async Task ReceiveLoop()
-    {
-        byte[] buffer = new byte[1024 * 4];
-        while (ws.State == WebSocketState.Open)
+        websocket.OnError += (e) =>
         {
-            var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
-            if (result.MessageType == WebSocketMessageType.Close)
-            {
-                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cts.Token);
-            }
-            else
-            {
-                string message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                ProcessMessage(message);
-            }
-        }
-    }
+            Debug.LogError("Error WebSocket: " + e);
+        };
 
-    private void ProcessMessage(string json)
-    {
-        try
+        websocket.OnClose += (e) =>
         {
-            // Intentem processar PARTIDA_INICIADA primer
-            PartidaIniciadaMessage startMsg = JsonUtility.FromJson<PartidaIniciadaMessage>(json);
-            if (startMsg != null && startMsg.type == "PARTIDA_INICIADA")
-            {
-                // Només processem si el missatge és per a nosaltres
-                if (startMsg.username == LocalUsername)
-                {
-                    Debug.Log("Iniciant partida per WebSocket!");
-                    Username = startMsg.username;
-                    Team = startMsg.team;
-                    ColorName = startMsg.color;
-                    shouldStartGame = true;
-                    Debug.Log($"La meva partida ha començat! Equip: {Team}, Color: {ColorName}");
-                }
-                return;
-            }
+            Debug.Log("WebSocket desconnectat");
+        };
 
-            GameStartMessage msg = JsonUtility.FromJson<GameStartMessage>(json);
-            if (msg != null && msg.type == "game_start")
-            {
-                pendingUsername = msg.username;
-                pendingTeam = msg.team;
-                hasPendingData = true;
-            }
-        }
-        catch (Exception e)
+        websocket.OnMessage += (bytes) =>
         {
-            Debug.LogWarning("Error processant missatge JSON: " + e.Message);
-        }
+            var message = System.Text.Encoding.UTF8.GetString(bytes);
+            ProcessMessage(message);
+        };
+
+        await websocket.Connect();
     }
 
     void Update()
     {
-        if (shouldStartGame)
+#if !UNITY_WEBGL || UNITY_EDITOR
+        if (websocket != null)
         {
-            shouldStartGame = false;
-            SceneManager.LoadScene("Bosque");
+            websocket.DispatchMessageQueue();
         }
+#endif
 
-        if (hasPendingData)
+        lock (_executionQueue)
         {
-            hasPendingData = false;
-            InicialitzarJugadorReal();
+            while (_executionQueue.Count > 0)
+            {
+                _executionQueue.Dequeue().Invoke();
+            }
         }
     }
 
-    private void InicialitzarJugadorReal()
+    public async void SendText(string text)
     {
-        Player player = UnityEngine.Object.FindFirstObjectByType<Player>();
-        if (player != null)
+        if (websocket != null && websocket.State == WebSocketState.Open)
         {
-            player.InicialitzarJugador(pendingUsername, pendingTeam);
-            Debug.Log($"Jugador inicialitzat des de WebSocket: {pendingUsername} ({pendingTeam})");
-        }
-        else
-        {
-            Debug.LogWarning("No s'ha trobat el component Player per inicialitzar.");
+            await websocket.SendText(text);
         }
     }
 
-    private async void OnDestroy()
+    public bool IsConnected()
     {
-        cts.Cancel();
-        if (ws != null && ws.State == WebSocketState.Open)
-        {
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "App tancada", CancellationToken.None);
-        }
-        if (ws != null) ws.Dispose();
+        return websocket != null && websocket.State == WebSocketState.Open;
     }
-}
 
-[Serializable]
-public class GameStartMessage
-{
-    public string type;
-    public string username;
-    public string team;
+    private void ProcessMessage(string json)
+    {
+        // TOTA la lògica de Lobby i Moviment s'ha mogut a MenuManager.cs
+        // per garantir la sincronització amb la UI i el fil principal.
+        // Aquest script només manté la connexió base si fos necessari, 
+        // però actualment el MenuManager gestiona el seu propi socket.
+        
+        /*
+        try
+        {
+            if (json.Contains("\"type\":\"PLAYER_MOVE\"")) { ... }
+            ...
+        }
+        catch (Exception e) { ... }
+        */
+    }
+
+    public async void Disconnect()
+    {
+        if (websocket != null)
+        {
+            await websocket.Close();
+            Debug.Log("[WebSocketClient] Connexió tancada manualment.");
+        }
+    }
+
+    private async void OnApplicationQuit()
+    {
+        if (websocket != null)
+        {
+            await websocket.Close();
+        }
+    }
 }
 
 [Serializable]
