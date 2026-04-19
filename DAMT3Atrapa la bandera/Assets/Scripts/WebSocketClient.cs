@@ -142,4 +142,5 @@ public class PartidaIniciadaMessage
     public string username;
     public string team;
     public string color;
+    public string roomId;
 }

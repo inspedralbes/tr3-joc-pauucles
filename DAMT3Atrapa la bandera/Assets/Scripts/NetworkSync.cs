@@ -33,6 +33,7 @@ public class NetworkSync : MonoBehaviour
         public bool isGrounded;
         public bool isClimbing;
         public float yVelocity;
+        public string banderaEquip; // "A", "B" o ""
     }
 
     void Start()
@@ -114,7 +115,7 @@ public class NetworkSync : MonoBehaviour
         {
             PlayerMoveMessage msg = new PlayerMoveMessage
             {
-                roomId = WebSocketClient.RoomId,
+                roomId = MenuManager.Instance.currentRoomId,
                 username = WebSocketClient.Username,
                 skin = MenuManager.Instance.currentSkin,
                 x = transform.position.x,
@@ -124,7 +125,9 @@ public class NetworkSync : MonoBehaviour
                 isRunning = anim.GetBool("isRunning"),
                 isGrounded = anim.GetBool("isGrounded"),
                 isClimbing = anim.GetBool("isClimbing"),
-                yVelocity = rb.linearVelocity.y
+                yVelocity = rb.linearVelocity.y,
+                banderaEquip = (localPlayer != null && localPlayer.banderaAgafada != null) ? 
+                               localPlayer.banderaAgafada.GetComponent<Bandera>().equipPropietari : ""
             };
 
             string json = JsonUtility.ToJson(msg);

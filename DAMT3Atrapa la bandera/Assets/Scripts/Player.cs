@@ -14,6 +14,7 @@ public class Player : MonoBehaviour
     public bool potCombatre = true;
     public int idJugador = 1; // 1 per a J1, 2 per a J2
     public string equip; // "A" o "B"
+    public string username;
 
     // Variables per a la sincronització determinista (sense xarxa)
     private static float ultimXoc = 0f;
@@ -38,22 +39,31 @@ public class Player : MonoBehaviour
 
     void Start()
     {
+        if (string.IsNullOrEmpty(username)) username = WebSocketClient.LocalUsername;
         rb = GetComponent<Rigidbody2D>();
-        sr = GetComponent<SpriteRenderer>();
-        anim = GetComponent<Animator>();
+        sr = GetComponentInChildren<SpriteRenderer>(); // Més robust per a prefabs complexes
+        anim = GetComponentInChildren<Animator>();
         col = GetComponent<Collider2D>();
         
         rb.freezeRotation = true; 
         defaultGravity = rb.gravityScale; // Guardem el valor inicial
 
-        if (uiDocument != null)
+        if (uiDocument != null && GetComponent<RemotePlayer>() == null)
         {
             VisualElement root = uiDocument.rootVisualElement;
             for (int i = 1; i <= 5; i++)
             {
-                VisualElement icon = root.Q<VisualElement>("Vida" + i);
-                if (icon != null) lifeIcons.Add(icon);
+                // Búsqueda recursiva molt més potent
+                VisualElement icon = root.Query<VisualElement>("Vida" + i).First();
+                if (icon != null) {
+                    lifeIcons.Add(icon);
+                }
             }
+            Debug.Log($"[HUD] Icones trobades: {lifeIcons.Count}");
+        }
+        else if (GetComponent<RemotePlayer>() != null)
+        {
+            Debug.Log($"[HUD] Jugador REMOT ({username}) detectat. Ignorant gestió de vides locals.");
         }
 
         // Configuració del Nametag si existeixen dades de sessió
@@ -71,9 +81,10 @@ public class Player : MonoBehaviour
     {
         isGrounded = CheckGrounded();
 
-        if (isFrozen || !potMoure) 
+        if (isFrozen || !potMoure || (rb != null && rb.bodyType == RigidbodyType2D.Static)) 
         {
-            rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+            if (rb != null && rb.bodyType != RigidbodyType2D.Static)
+                rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
             return;
         }
 
@@ -124,6 +135,8 @@ public class Player : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (rb.bodyType == RigidbodyType2D.Static) return;
+
         if (isClimbing)
         {
             rb.gravityScale = 0f;
@@ -140,41 +153,73 @@ public class Player : MonoBehaviour
     {
         if (collision.gameObject.CompareTag("Player"))
         {
+            // Bloquejar combat només si el propi jugador està en STUN
+            // Ignorem el check del rival perquè la seva variable 'potCombatre' no se sincronitza per xarxa
+            if (!potCombatre) {
+                string nameForLog = string.IsNullOrEmpty(username) ? WebSocketClient.LocalUsername : username;
+                Debug.Log($"[COMBAT] Skipped: {nameForLog} està en STUN/Cooldown.");
+                return;
+            }
+            
             // 2.1 Tallafocs temporal per evitar doble dispar d'event (Physics Jitter)
-            if (Time.time - ultimXoc < 3f) return;
+            if (Time.time - ultimXoc < 3f) {
+                Debug.Log($"[COMBAT] Skipped: Massa aviat des de l'últim xoc ({Time.time - ultimXoc:F1}s / 3.0s)");
+                return;
+            }
 
             RemotePlayer rp = collision.gameObject.GetComponent<RemotePlayer>();
-            if (rp == null || string.IsNullOrEmpty(rp.username)) return;
+            if (rp == null || string.IsNullOrEmpty(rp.username)) {
+                // Si no hi ha RemotePlayer, pot ser un bot o un test local, però necessitem un nom pels minijocs
+                return;
+            }
 
             Player opponent = collision.gameObject.GetComponent<Player>();
+            if (opponent != null && opponent.equip == this.equip) {
+                Debug.Log($"[COMBAT] Skipped: {username} i {rp.username} són del mateix equip ({this.equip})");
+                return;
+            }
+
             if (opponent != null && opponent.equip != this.equip)
             {
-                // 2.2 Sincronització Determinista Pura
+                // 2.2 Sincronització de Col·lisió (Només un mana per evitar conflictes)
                 ultimXoc = Time.time;
                 comptadorCombats++;
 
                 string localName = WebSocketClient.LocalUsername;
-                string opponentName = rp.username;
+                string opponentName = rp != null ? rp.username : "Desconegut";
 
-                // 2.4 Clau idèntica per a tots dos participants
-                string clau = string.Compare(localName, opponentName) < 0 ? localName + opponentName : opponentName + localName;
-                
-                // 2.5 Generar l'índex del joc (ex: % 5 si tenim 5 jocs)
-                int gameIndex = Mathf.Abs((clau + comptadorCombats).GetHashCode()) % 5 + 1;
+                // Lògica de Master: El que té el nom alfabèticament menor decideix el joc
+                bool soyMaster = string.Compare(localName, opponentName) < 0;
 
-                Debug.Log($"[SISTEMA] Combat determinista #{comptadorCombats}. Clau: {clau}. Índex: {gameIndex}");
+                Debug.Log($"[COL·LISIÓ] Iniciant fase minijoc. Local={localName}, Rival={opponentName}, SocMaster={soyMaster}");
 
-                // 3.1 Aturar moviment
-                this.potMoure = false;
-                opponent.potMoure = false;
-
-                // 3.2 Obrir UI IMMEDIATAMENT (tots dos clients actuen com a Host local)
-                var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
-                if (managers.Length > 0)
+                if (soyMaster)
                 {
-                    var ui = managers[0];
-                    ui.gameObject.SetActive(true);
-                    ui.IniciarMinijoc(this.gameObject, collision.gameObject, gameIndex);
+                    // Generar un índex de joc aleatori entre els 5 jocs disponibles:
+                    // 1: PPTLLS, 2: Parells/Senars, 3: Atura Barra, 5: Pols Força, 6: Acaparament
+                    int[] jocsValids = { 1, 2, 3, 5, 6 };
+                    int gameIndex = jocsValids[UnityEngine.Random.Range(0, jocsValids.Length)];
+
+                    Debug.Log($"[MASTER] Col·lisió detectada. Escollit minijoc {gameIndex} de forma aleatòria.");
+
+                    // 2.5 Enviar ordre d'inici per Xarxa
+                    if (MenuManager.Instance != null)
+                    {
+                        MenuManager.Instance.EnviarMinijocStart(gameIndex, localName, opponentName);
+                    }
+
+                    // 2.6 Iniciar localment IMMEDIATAMENT (per al Master)
+                    var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
+                    if (managers.Length > 0)
+                    {
+                        var ui = managers[0];
+                        ui.gameObject.SetActive(true);
+                        ui.IniciarMinijoc(this.gameObject, collision.gameObject, gameIndex);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[CLIENT] Col·lisió detectada. Esperant que el Master ({opponentName}) iniciï el joc...");
                 }
             }
         }
@@ -244,6 +289,7 @@ public class Player : MonoBehaviour
 
     public void InicialitzarJugador(string username, string team)
     {
+        this.username = username;
         Debug.Log($"Inicialitzant jugador {username} a l'equip {team}");
         
         if (uiDocument != null)
@@ -269,13 +315,46 @@ public class Player : MonoBehaviour
 
     public void LoseCombat()
     {
+        // Reduir vida (Només una vegada) i iniciar procés de derrota
+        ProcesarDerrota(8f);
+    }
+
+    public void GuanyarMinijoc()
+    {
+        Debug.Log("[Player] Victoria en minijoc. Restaurat moviment total.");
+        potMoure = true;
+        potCombatre = true;
+        isFrozen = false; // Reset instantani del flag de congelat
+        
+        if (rb != null) {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.gravityScale = defaultGravity;
+            rb.linearVelocity = Vector2.zero; // Limpiar inèrcies estranyes
+        }
+    }
+
+    public void PerdreMinijoc()
+    {
+        ProcesarDerrota(8f);
+    }
+
+    public void ProcesarDerrota(float durada)
+    {
         if (isInvulnerable) return;
 
-        PerdreMinijoc();
-
+        int videsAbans = lives;
         lives--;
-        if (anim != null) anim.SetTrigger("hurt");
+        Debug.Log($"[DERROTA] {username} perd una vida. Abans: {videsAbans} -> Ara: {lives}");
+        
+        if (lives <= 0)
+        {
+            TornarABase();
+            return;
+        }
+
         UpdateLivesUI();
+
+        if (anim != null) anim.SetTrigger("hurt");
 
         if (lives <= 0)
         {
@@ -283,55 +362,113 @@ public class Player : MonoBehaviour
         }
         else
         {
-            AplicarCastigDerrota();
+            DeixarBandera(new Vector3(2f, 0f, 0f));
+            AplicarEfecteVisualDerrota(durada);
         }
     }
 
-    public void GuanyarMinijoc()
+    public void AplicarEfecteVisualDerrota(float durada)
     {
-        Debug.Log("[Player] Victoria en minijoc. Enviant Senyal X (9999).");
-        posAbansDeGuanyar = transform.position;
-        transform.position = new Vector3(9999f, 9999f, 0);
-        StartCoroutine(TornarPosicio());
-        potMoure = true;
+        StopAllCoroutines(); 
+        StartCoroutine(RutinaDerrotaConsolidada(durada));
     }
 
-    private System.Collections.IEnumerator TornarPosicio()
+    private System.Collections.IEnumerator RutinaDerrotaConsolidada(float temps)
     {
-        yield return new WaitForSeconds(0.2f);
-        transform.position = posAbansDeGuanyar;
-    }
-
-    public void PerdreMinijoc()
-    {
-        Debug.Log("[Player] Derrota detectada. Iniciant STUN.");
-        StartCoroutine(RutinaStun(3f));
-    }
-
-    private System.Collections.IEnumerator RutinaStun(float temps)
-    {
+        isFrozen = true;
         potMoure = false;
-        yield return new WaitForSeconds(temps);
+        potCombatre = false;
+        
+        // ESPERAR UN MOMENT ABANS DE TORNAR-SE ESTÀTIC
+        // Això permet que l'impulsió del knockback s'apliqui en mode Dynamic
+        yield return new WaitForSeconds(0.3f);
+        
+        if (rb != null && isFrozen && rb.bodyType != RigidbodyType2D.Static) 
+        {
+            rb.linearVelocity = Vector2.zero; // FRENAR PRIMER
+            rb.bodyType = RigidbodyType2D.Static; // CONGELAR DESPRÉS
+        }
+
+        if (col != null) col.isTrigger = true;
+
+        float elapsed = 0f;
+        bool visible = true;
+        
+        // Seguretat per al SpriteRenderer
+        if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
+        Color originalColor = (sr != null) ? sr.color : Color.white;
+
+        while (elapsed < temps)
+        {
+            visible = !visible;
+            if (sr != null) sr.color = visible ? Color.red : new Color(1, 0, 0, 0.2f);
+            
+            yield return new WaitForSeconds(0.1f);
+            elapsed += 0.1f;
+        }
+
+        if (sr != null) sr.color = originalColor;
+        isFrozen = false;
+        if (col != null) col.isTrigger = false;
+        
+        if (rb != null) {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.gravityScale = defaultGravity;
+        }
+
         potMoure = true;
-        Debug.Log("[Player] STUN finalitzat.");
+        potCombatre = true;
+
+        Debug.Log("[Player] Estat fantasma i bloqueig finalitzat.");
+    }
+
+    public void TornarABase()
+    {
+        Debug.Log($"[RESPAWN] {username} ha mort. Tornant a la base de l'equip {equip}.");
+        
+        // Reset de vides local
+        lives = 5;
+        UpdateLivesUI();
+
+        // Trobar punt de spawn
+        string spawnName = (equip == "A" || equip == "1") ? "PuntSpawn_Equip1" : "PuntSpawn_Equip2";
+        GameObject spawnPoint = GameObject.Find(spawnName);
+        
+        if (spawnPoint != null)
+        {
+            transform.position = spawnPoint.transform.position;
+            // Si porta bandera, la deixa
+            DeixarBandera();
+        }
+        else
+        {
+            Debug.LogWarning($"[RESPAWN] No s'ha trobat el punt de spawn: {spawnName}");
+            // Fallback: usar el respawnPoint assignat si existeix
+            if (respawnPoint != null) transform.position = respawnPoint.position;
+        }
+
+        // Recuperar moviment
+        GuanyarMinijoc(); 
     }
 
     public void FinalitzarCombat()
     {
-        potMoure = true;
+        // No restaurem potMoure aquí per no interrompre el STUN del perdedor
         StartCoroutine(CombatCooldownCoroutine(4f));
     }
 
-    public void AplicarCastigDerrota()
+    public void AplicarEmpenta(Vector2 rivalPos)
     {
-        rb.linearVelocity = Vector2.zero;
-        rb.gravityScale = 0; 
+        if (rb == null || rb.bodyType == RigidbodyType2D.Static) return;
 
-        StartCoroutine(HandleLossCoroutine(7));
-        StartCoroutine(CombatCooldownCoroutine(4f));
+        Vector2 dir = ((Vector2)transform.position - rivalPos).normalized;
+        if (dir == Vector2.zero) dir = Random.insideUnitCircle.normalized;
+        
+        rb.AddForce(dir * 15f, ForceMode2D.Impulse);
+        Debug.Log($"[Player] Aplicant empenta (knockback) en direcció {dir}");
     }
 
-    public void DeixarBandera()
+    public void DeixarBandera(Vector3? dropOffset = null)
     {
         if (banderaAgafada != null)
         {
@@ -339,6 +476,10 @@ public class Player : MonoBehaviour
             if (scriptB != null)
             {
                 scriptB.DeixarDeSeguir();
+                if (dropOffset.HasValue)
+                {
+                    banderaAgafada.position += dropOffset.Value;
+                }
             }
             banderaAgafada = null;
         }
@@ -353,6 +494,32 @@ public class Player : MonoBehaviour
 
     private void UpdateLivesUI()
     {
+        // Guard de seguretat: Només el jugador local pot tocar la UI global de vides
+        if (GetComponent<RemotePlayer>() != null) return;
+
+        if (lifeIcons.Count == 0) {
+            // Intentar re-vincular de forma agressiva: busquem a TOTS els UIDocuments de l'escena
+            UIDocument[] allUI = Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None);
+            foreach (var doc in allUI)
+            {
+                if (doc.rootVisualElement == null) continue;
+                
+                var icon1 = doc.rootVisualElement.Query<VisualElement>("Vida1").First();
+                if (icon1 != null)
+                {
+                    Debug.Log($"[HUD] Trobada PantallaHUD al UIDocument de {doc.gameObject.name}. Vinculant...");
+                    lifeIcons.Clear();
+                    for (int i = 1; i <= 5; i++)
+                    {
+                        var icon = doc.rootVisualElement.Query<VisualElement>("Vida" + i).First();
+                        if (icon != null) lifeIcons.Add(icon);
+                    }
+                    break; 
+                }
+            }
+        }
+
+        Debug.Log($"[HUD] Actualitzant visualment {lifeIcons.Count} icones per a {lives} vides.");
         for (int i = 0; i < lifeIcons.Count; i++)
         {
             if (i < lives)
@@ -378,23 +545,6 @@ public class Player : MonoBehaviour
         isInvulnerable = false;
     }
 
-    private System.Collections.IEnumerator HandleLossCoroutine(int duration)
-    {
-        potMoure = false; 
-        isFrozen = true;
-        if (col != null) col.isTrigger = true;
-        
-        Color originalColor = sr.color;
-        sr.color = Color.blue;
-
-        yield return new WaitForSeconds(duration);
-
-        sr.color = originalColor;
-        isFrozen = false;
-        if (col != null) col.isTrigger = false;
-        rb.gravityScale = defaultGravity; 
-        potMoure = true; 
-    }
 
     private System.Collections.IEnumerator HandleRespawnCoroutine(int duration)
     {

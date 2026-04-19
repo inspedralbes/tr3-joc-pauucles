@@ -57,9 +57,12 @@ wss.on("connection", (ws) => {
                 await gameController.broadcastRoomUpdates();
             }
 
-            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER") {
+            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER" || 
+                msg.type === "MINIJOC_START" || msg.type === "MINIJOC_UPDATE" || msg.type === "MINIJOC_RESULT") {
                 // Broadcast simple a tots els clients connectats
                 const message = JSON.stringify(msg);
+                console.log(`[RELAY] Retransmetent missatge ${msg.type} de ${msg.username || 'unknown'} a la sala ${msg.roomId}`);
+                
                 wss.clients.forEach((client) => {
                     if (client !== ws && client.readyState === WebSocket.OPEN) {
                         client.send(message);

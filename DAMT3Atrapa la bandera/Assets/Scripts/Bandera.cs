@@ -38,6 +38,13 @@ public class Bandera : MonoBehaviour
             Player player = collision.GetComponent<Player>();
             if (player != null && player.banderaAgafada == null)
             {
+                // NO permetem recollir si el jugador està en STUN/FANTASMA (8s)
+                if (!player.potCombatre)
+                {
+                    Debug.Log($"[Bandera] Ignorant recollida: {player.username} està en estat FANTASMA.");
+                    return;
+                }
+
                 // Obtenim l'equip del jugador directament de la variable sincronitzada
                 string equipJugador = player.equip;
 
@@ -78,6 +85,15 @@ public class Bandera : MonoBehaviour
         // Lògica reactiva quan la bandera és portada per un jugador
         if (transform.parent != null)
         {
+            Player holder = transform.parent.GetComponent<Player>();
+            if (holder != null && (!holder.potCombatre || holder.idJugador == 0)) // idJugador 0 podria ser un error, però mirem potCombatre
+            {
+                // Si el que em porta no pot combatre (està en stun), me deixo anar
+                DeixarDeSeguir();
+                holder.banderaAgafada = null;
+                return;
+            }
+
             // 1) Detecció de moviment
             bool sestaMovent = Vector3.Distance(transform.position, ultimaPosicio) > 0.002f;
             if (anim != null && anim.runtimeAnimatorController != null) anim.SetBool("isWalking", sestaMovent);
@@ -88,9 +104,12 @@ public class Bandera : MonoBehaviour
             {
                 mySprite.flipX = parentSprite.flipX;
                 
-                // Ajustem la posició local segons on miri el pare per seguir-lo naturalment
-                float offsetX = mySprite.flipX ? 0.5f : -0.5f;
-                transform.localPosition = new Vector3(offsetX, 0f, 0f);
+                // Ajustem la posició local a zero absolut per evitar desviaments en remots
+                transform.localPosition = Vector3.zero;
+                
+                // Opciónal: Si vols un offset petit cap a un costat segons flip
+                float offsetX = mySprite.flipX ? 0.3f : -0.3f;
+                transform.localPosition = new Vector3(offsetX, 0.4f, 0f);
             }
         }
 

@@ -4,98 +4,130 @@ using System.Collections.Generic;
 
 public class MinijocParellsSenarsLogic : MonoBehaviour
 {
+    private Label _textNums, _textResultat, _textTemps;
+    private Button _btnParell, _btnSenar;
     private int _num1, _num2;
-    private float tempsRestant = 5f;
+    private float _tempsRestant = 10f;
     private bool jocActiu = false;
     private bool respostaEsParell;
+    
+    private bool? _eleccioJ1; // Local
+    private bool? _eleccioJ2; // Rival
+
+    public void InicialitzarUI(VisualElement root)
+    {
+        _textNums = root.Q<Label>("TextOperacio");
+        _textTemps = root.Q<Label>("TextTempsMates");
+        _textResultat = root.Q<Label>("TextResultatMates");
+        _btnParell = root.Q<Button>("BtnParells");
+        _btnSenar = root.Q<Button>("BtnSenars");
+
+        _btnParell.clicked -= () => Respon(true); _btnParell.clicked += () => Respon(true);
+        _btnSenar.clicked -= () => Respon(false); _btnSenar.clicked += () => Respon(false);
+    }
 
     public void IniciarMinijoc()
     {
-        var root = GetComponent<UIDocument>().rootVisualElement;
-
-        _num1 = Random.Range(1, 50);
-        _num2 = Random.Range(1, 50);
-        respostaEsParell = ((_num1 + _num2) % 2 == 0);
-
-        var labels = root.Query<Label>().ToList();
-        if (labels.Count > 1)
+        // SISTEMA DE SEMILLA PARA SINCRONIZACIÓN INSTANTÁNEA
+        // Usamos el roomId como semilla para que ambos generen lo mismo sin red
+        if (MenuManager.Instance != null && !string.IsNullOrEmpty(MenuManager.Instance.currentRoomId))
         {
-            labels[1].text = $"{_num1} + {_num2}";
+            int seed = MenuManager.Instance.currentRoomId.GetHashCode();
+            Random.InitState(seed);
+            Debug.Log($"[ParellsSenars] Usant llavor de sala ({MenuManager.Instance.currentRoomId}) per a sincronització instantània.");
         }
 
-        var botons = root.Query<Button>().ToList();
-        if (botons.Count >= 2)
-        {
-            botons[0].clicked -= () => Respon(true);
-            botons[0].clicked += () => Respon(true);
-            botons[1].clicked -= () => Respon(false);
-            botons[1].clicked += () => Respon(false);
-        }
-
-        tempsRestant = 5f;
+        _num1 = Random.Range(15, 80);
+        _num2 = Random.Range(15, 80);
+        
         jocActiu = true;
+        _tempsRestant = 10f;
+        _eleccioJ1 = null;
+        _eleccioJ2 = null;
+        ActualitzarUI();
+        Debug.Log($"[ParellsSenars] Mates preparades: {_num1} + {_num2}");
     }
 
-    public void RebreResultatXarxa(string winner)
+    private void ActualitzarUI()
     {
-        if (jocActiu && winner != "LOCAL_WIN")
+        if (_textNums != null)
         {
-            CridarDerrota();
+            if (_num1 == 0 && _num2 == 0) _textNums.text = "Sincronitzant...";
+            else _textNums.text = $"{_num1} + {_num2}";
+        }
+        
+        respostaEsParell = ((_num1 + _num2) % 2 == 0);
+        if (_textTemps != null) _textTemps.text = (_num1 == 0) ? "..." : "Calcula!";
+    }
+
+    public void RebreActualitzacioXarxa(string data)
+    {
+        if (!jocActiu) return;
+
+        if (data.StartsWith("NUMS:"))
+        {
+            string[] parts = data.Substring(5).Split(',');
+            _num1 = int.Parse(parts[0]);
+            _num2 = int.Parse(parts[1]);
+            ActualitzarUI();
+        }
+        else if (data.StartsWith("CHOICE:"))
+        {
+            _eleccioJ2 = (data.Split(':')[1] == "1");
+            Debug.Log("[ParellsSenars] Rival ha escollit.");
         }
     }
 
     private void Respon(bool triatParell)
     {
-        if (!jocActiu) return;
+        if (!jocActiu || _eleccioJ1 != null) return;
 
-        jocActiu = false;
-        Debug.Log("Boto clicat!");
-
-        bool encertat = (triatParell == respostaEsParell);
-
-        if (encertat)
-        {
-            Player localPlayer = GetLocalPlayer();
-            if (localPlayer != null) localPlayer.GuanyarMinijoc();
-        }
-        else
-        {
-            Player localPlayer = GetLocalPlayer();
-            if (localPlayer != null) localPlayer.PerdreMinijoc();
-        }
-
-        this.gameObject.SetActive(false);
+        _eleccioJ1 = triatParell;
+        if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocUpdate("CHOICE:" + (triatParell ? "1" : "0"));
     }
 
     private void Update()
     {
         if (!jocActiu) return;
 
-        tempsRestant -= Time.deltaTime;
-        
-        // Opcional: Podríem actualitzar el temps també usant cerca genèrica si calgués, 
-        // però l'usuari no ho ha demanat explícitament en aquest turn per Update.
-        // Tot i així, per mantenir la UI funcional, intentarem trobar la label de temps (índex 2 normalment).
-        var root = GetComponent<UIDocument>().rootVisualElement;
-        var labels = root.Query<Label>().ToList();
-        if (labels.Count > 2) labels[2].text = tempsRestant.ToString("F1");
+        bool algunTriat = (_eleccioJ1 != null || _eleccioJ2 != null);
 
-        if (tempsRestant <= 0)
+        if (algunTriat)
         {
-            CridarDerrota();
+            _tempsRestant -= Time.deltaTime;
+            if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
+        }
+
+        if (_tempsRestant <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
+        {
+            Resoldre();
         }
     }
 
-    private void CridarDerrota()
+    private void Resoldre()
     {
         if (!jocActiu) return;
-
         jocActiu = false;
 
-        Player localPlayer = GetLocalPlayer();
-        if (localPlayer != null) localPlayer.PerdreMinijoc();
+        bool localCorrecte = (_eleccioJ1 == respostaEsParell);
+        bool rivalCorrecte = (_eleccioJ2 == respostaEsParell);
 
-        this.gameObject.SetActive(false);
+        if (_eleccioJ1 == null) localCorrecte = false;
+        if (_eleccioJ2 == null) rivalCorrecte = false;
+
+        string guanyador = "Empat";
+        if (localCorrecte && !rivalCorrecte) guanyador = "Jugador 1";
+        else if (!localCorrecte && rivalCorrecte) guanyador = "Jugador 2";
+
+        if (guanyador == "Empat" && (localCorrecte || rivalCorrecte))
+        {
+            // Si tots dos encerten, reiniciem per desempatar
+            IniciarMinijoc();
+        }
+        else
+        {
+            MinijocUIManager.Instance.FinalitzarCombat(guanyador);
+        }
     }
 
     private Player GetLocalPlayer()

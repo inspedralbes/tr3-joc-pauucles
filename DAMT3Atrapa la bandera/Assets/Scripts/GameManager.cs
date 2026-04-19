@@ -25,6 +25,7 @@ public class GameManager : MonoBehaviour
 
     public Player localPlayer;
     public Dictionary<string, RemotePlayer> remotePlayers = new Dictionary<string, RemotePlayer>();
+    private bool banderesInstanciades = false;
 
     void Awake()
     {
@@ -88,8 +89,12 @@ public class GameManager : MonoBehaviour
         // Esperem un temps fix per donar temps a la xarxa a sincronitzar-se
         yield return new UnityEngine.WaitForSeconds(0.5f);
 
-        Debug.Log("[GameManager] Intentant instanciar banderes...");
-        InstanciarBanderes();
+        if (!banderesInstanciades)
+        {
+            banderesInstanciades = true;
+            Debug.Log("[GameManager] Instantciant banderes locals...");
+            InstanciarBanderes();
+        }
     }
 
     void InstanciarLocalPlayer()
@@ -103,7 +108,8 @@ public class GameManager : MonoBehaviour
         }
 
         GameObject prefab = GetPrefabPerSkin(skin);
-        // Instanciem temporalment a zero, AssignarSpawn el mourà al lloc correcte
+        Debug.Log($"[GameManager] Instanciant LOCAL PLAYER amb skin: {skin}");
+        
         GameObject go = Instantiate(prefab, Vector3.zero, Quaternion.identity);
         localPlayer = go.GetComponent<Player>();
         

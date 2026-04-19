@@ -90,7 +90,8 @@ class GameController {
                         type: "PARTIDA_INICIADA",
                         username: player.username,
                         team: player.team,
-                        color: playerColor
+                        color: playerColor,
+                        roomId: gameData.roomId
                     });
 
                     this.wss.clients.forEach((client) => {

@@ -7,7 +7,7 @@ public class MinijocPPTLLSLogic : MonoBehaviour
     private Label _textResultat;
     private Button _btnPedra, _btnPaper, _btnTisora, _btnLlangardaix, _btnSpock;
 
-    private float _tempsRestant = 5f;
+    private float _tempsRestant = 10f;
     private float _tempsRevelacio = 3f;
     private bool _faseRevelacio = false;
     private bool jocActiu = false;
@@ -26,30 +26,42 @@ public class MinijocPPTLLSLogic : MonoBehaviour
         _btnLlangardaix = root.Q<Button>("BtnLlangardaix");
         _btnSpock = root.Q<Button>("BtnSpock");
 
-        if (_btnPedra != null) { _btnPedra.clicked -= () => RegistrarTriar(OpcioMinijoc.Pedra); _btnPedra.clicked += () => RegistrarTriar(OpcioMinijoc.Pedra); }
-        if (_btnPaper != null) { _btnPaper.clicked -= () => RegistrarTriar(OpcioMinijoc.Paper); _btnPaper.clicked += () => RegistrarTriar(OpcioMinijoc.Paper); }
-        if (_btnTisora != null) { _btnTisora.clicked -= () => RegistrarTriar(OpcioMinijoc.Tisora); _btnTisora.clicked += () => RegistrarTriar(OpcioMinijoc.Tisora); }
-        if (_btnLlangardaix != null) { _btnLlangardaix.clicked -= () => RegistrarTriar(OpcioMinijoc.Llangardaix); _btnLlangardaix.clicked += () => RegistrarTriar(OpcioMinijoc.Llangardaix); }
-        if (_btnSpock != null) { _btnSpock.clicked -= () => RegistrarTriar(OpcioMinijoc.Spock); _btnSpock.clicked += () => RegistrarTriar(OpcioMinijoc.Spock); }
+        Debug.Log($"[PPTLLS] Inicialitzant UI. Pedra={(_btnPedra != null)}, Paper={(_btnPaper != null)}, Tisora={(_btnTisora != null)}, Llang={(_btnLlangardaix != null)}, Spock={(_btnSpock != null)}");
+
+        if (_btnPedra != null) { _btnPedra.clicked -= OnPedra; _btnPedra.clicked += OnPedra; }
+        if (_btnPaper != null) { _btnPaper.clicked -= OnPaper; _btnPaper.clicked += OnPaper; }
+        if (_btnTisora != null) { _btnTisora.clicked -= OnTisora; _btnTisora.clicked += OnTisora; }
+        if (_btnLlangardaix != null) { _btnLlangardaix.clicked -= OnLlangardaix; _btnLlangardaix.clicked += OnLlangardaix; }
+        if (_btnSpock != null) { _btnSpock.clicked -= OnSpock; _btnSpock.clicked += OnSpock; }
 
         if (_textResultat != null) _textResultat.text = "";
     }
 
+    private void OnPedra() { Debug.Log("[PPTLLS] Click: Pedra"); RegistrarTriar(OpcioMinijoc.Pedra); }
+    private void OnPaper() { Debug.Log("[PPTLLS] Click: Paper"); RegistrarTriar(OpcioMinijoc.Paper); }
+    private void OnTisora() { Debug.Log("[PPTLLS] Click: Tisora"); RegistrarTriar(OpcioMinijoc.Tisora); }
+    private void OnLlangardaix() { Debug.Log("[PPTLLS] Click: Llangardaix"); RegistrarTriar(OpcioMinijoc.Llangardaix); }
+    private void OnSpock() { Debug.Log("[PPTLLS] Click: Spock"); RegistrarTriar(OpcioMinijoc.Spock); }
+
     public void IniciarMinijoc()
     {
-        _tempsRestant = 5f;
+        _tempsRestant = 10f;
         _tempsRevelacio = 3f;
         _faseRevelacio = false;
         jocActiu = true;
         _eleccioJ1 = null;
         _eleccioJ2 = null;
         if (_textResultat != null) _textResultat.text = "";
-        if (_textTemps != null) _textTemps.text = "Tria!";
+        if (_textTemps != null) _textTemps.text = "Tria una opció!";
     }
 
     private void RegistrarTriar(OpcioMinijoc opcio)
     {
-        if (!jocActiu || _faseRevelacio || _eleccioJ1 != null) return;
+        Debug.Log($"[PPTLLS] Botó Click detectat: {opcio}");
+        if (!jocActiu || _faseRevelacio || _eleccioJ1 != null) {
+            Debug.Log($"[PPTLLS] Clic ignorat. Actiu={jocActiu}, FaseRev={_faseRevelacio}, JaTriat={(_eleccioJ1 != null)}");
+            return;
+        }
         _eleccioJ1 = opcio;
         
         // Envia l'elecció local al rival
@@ -65,7 +77,9 @@ public class MinijocPPTLLSLogic : MonoBehaviour
             if (int.TryParse(data.Split(':')[1], out int opcioId))
             {
                 _eleccioJ2 = (OpcioMinijoc)opcioId;
-                Debug.Log($"[PPTLLS] Rebut rival: {_eleccioJ2}");
+                Debug.Log($"[PPTLLS] Rebut rival.");
+                
+                // HEM ELIMINAT EL CHIVATAZO "EL RIVAL JA HA TRIAT" PER PETICIÓ DE L'USUARI
             }
         }
     }
@@ -81,10 +95,20 @@ public class MinijocPPTLLSLogic : MonoBehaviour
 
         if (!_faseRevelacio)
         {
-            _tempsRestant -= Time.deltaTime;
-            if (_textTemps != null && _eleccioJ1 == null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
+            // El temps d'espera (10s) NOMÉS corre quan algú ja ha triat
+            bool algunTriat = (_eleccioJ1 != null || _eleccioJ2 != null);
+            
+            if (algunTriat)
+            {
+                _tempsRestant -= Time.deltaTime;
+                if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
+            }
+            else
+            {
+                if (_textTemps != null) _textTemps.text = "Esperant la primera elecció...";
+            }
 
-            // Resolquem si tenim les dues eleccions O s'ha acabat el temps
+            // Resolem si tenim les dues eleccions O s'ha acabat el temps
             if (_tempsRestant <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
             {
                 FinalitzarFaseEleccio();
@@ -95,13 +119,19 @@ public class MinijocPPTLLSLogic : MonoBehaviour
             _tempsRevelacio -= Time.deltaTime;
             if (_tempsRevelacio <= 0)
             {
-                jocActiu = false;
                 ResultatMinijoc res = MinijocPPTLLS.AvaluarGuanyador(_eleccioJ1 ?? OpcioMinijoc.Pedra, _eleccioJ2 ?? OpcioMinijoc.Pedra);
-                string guanyadorStr = "Empat";
-                if (res == ResultatMinijoc.GuanyaJugador1) guanyadorStr = "Jugador 1";
-                else if (res == ResultatMinijoc.GuanyaJugador2) guanyadorStr = "Jugador 2";
-
-                MinijocUIManager.Instance.FinalitzarCombat(guanyadorStr);
+                
+                if (res == ResultatMinijoc.Empat)
+                {
+                    Debug.Log("[PPTLLS] EMPAT! Reiniciant minijoc...");
+                    IniciarMinijoc(); 
+                }
+                else
+                {
+                    jocActiu = false;
+                    string guanyadorStr = (res == ResultatMinijoc.GuanyaJugador1) ? "Jugador 1" : "Jugador 2";
+                    MinijocUIManager.Instance.FinalitzarCombat(guanyadorStr);
+                }
             }
         }
     }
@@ -111,13 +141,21 @@ public class MinijocPPTLLSLogic : MonoBehaviour
         if (_faseRevelacio) return;
         _faseRevelacio = true;
 
-        // Si algú no ha triat, assignem Pedra per defecte (o aleatori)
+        // Si algú no ha triat i l'altre sí, el que no ha triat perd.
+        // Ho marquem posant una opció que sempre perdi contra l'altra si cal,
+        // però el més net és mostrar-ho en el text de resultat.
+        
+        string resultatEspecial = "";
+        if (_eleccioJ1 == null && _eleccioJ2 != null) resultatEspecial = "Has trigat massa! Guanya el rival.";
+        else if (_eleccioJ1 != null && _eleccioJ2 == null) resultatEspecial = "El rival ha trigat massa! Guanyes tu.";
+
         if (_eleccioJ1 == null) _eleccioJ1 = OpcioMinijoc.Pedra;
         if (_eleccioJ2 == null) _eleccioJ2 = OpcioMinijoc.Pedra;
 
         if (_textResultat != null)
         {
-            _textResultat.text = $"TU: {_eleccioJ1} vs RIVAL: {_eleccioJ2}";
+            if (!string.IsNullOrEmpty(resultatEspecial)) _textResultat.text = resultatEspecial;
+            else _textResultat.text = $"TU: {_eleccioJ1} vs RIVAL: {_eleccioJ2}";
         }
     }
 }

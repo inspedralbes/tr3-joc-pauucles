@@ -12,6 +12,11 @@ public class MinijocUIManager : MonoBehaviour
     private Player _atacant;
     private Player _defensor;
 
+    public Player jugador1 => _jugador1;
+    public Player jugador2 => _jugador2;
+    public Player atacant => _atacant;
+    public Player defensor => _defensor;
+
     // Contenidors visuals
     private VisualElement _contenidorPPTLLS;
     private VisualElement _contenidorParellsSenars;
@@ -29,7 +34,7 @@ public class MinijocUIManager : MonoBehaviour
         "PPTLLS",
         "ParellsSenars",
         "AturaBarra",
-        "CablePelat",
+        "Cap", // El 4 era CablePelat, el buidem
         "PolsimForca",
         "AcaparamentMirades"
     };
@@ -115,8 +120,10 @@ public class MinijocUIManager : MonoBehaviour
                 if (contPPT != null)
                 {
                     contPPT.style.display = DisplayStyle.Flex;
-                    MinijocPPTLLSLogic logic = GetComponent<MinijocPPTLLSLogic>();
-                    if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
+                    MinijocPPTLLSLogic logic = GetComponent<MinijocPPTLLSLogic>() ?? gameObject.AddComponent<MinijocPPTLLSLogic>();
+                    Debug.Log("[MinijocUI] Inicialitzant PPTLLS...");
+                    logic.InicialitzarUI(root); 
+                    logic.IniciarMinijoc(); 
                 }
                 else ResolverEmpatDirecte();
                 break;
@@ -125,8 +132,10 @@ public class MinijocUIManager : MonoBehaviour
                 if (contParells != null)
                 {
                     contParells.style.display = DisplayStyle.Flex;
-                    MinijocParellsSenarsLogic logic = GetComponent<MinijocParellsSenarsLogic>();
-                    if (logic != null) { logic.IniciarMinijoc(); }
+                    MinijocParellsSenarsLogic logic = GetComponent<MinijocParellsSenarsLogic>() ?? gameObject.AddComponent<MinijocParellsSenarsLogic>();
+                    Debug.Log("[MinijocUI] Inicialitzant ParellsSenars...");
+                    logic.InicialitzarUI(root); 
+                    logic.IniciarMinijoc(); 
                 }
                 else ResolverEmpatDirecte();
                 break;
@@ -135,8 +144,10 @@ public class MinijocUIManager : MonoBehaviour
                 if (contAtura != null)
                 {
                     contAtura.style.display = DisplayStyle.Flex;
-                    MinijocAturaBarraLogic logic = GetComponent<MinijocAturaBarraLogic>();
-                    if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
+                    MinijocAturaBarraLogic logic = GetComponent<MinijocAturaBarraLogic>() ?? gameObject.AddComponent<MinijocAturaBarraLogic>();
+                    Debug.Log("[MinijocUI] Inicialitzant AturaBarra...");
+                    logic.InicialitzarUI(root); 
+                    logic.IniciarMinijoc(); 
                 }
                 else ResolverEmpatDirecte();
                 break;
@@ -145,8 +156,10 @@ public class MinijocUIManager : MonoBehaviour
                 if (contPols != null)
                 {
                     contPols.style.display = DisplayStyle.Flex;
-                    MinijocPolsimForcaLogic logic = GetComponent<MinijocPolsimForcaLogic>();
-                    if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
+                    MinijocPolsimForcaLogic logic = GetComponent<MinijocPolsimForcaLogic>() ?? gameObject.AddComponent<MinijocPolsimForcaLogic>();
+                    Debug.Log("[MinijocUI] Inicialitzant PolsimForca...");
+                    logic.InicialitzarUI(root); 
+                    logic.IniciarMinijoc(); 
                 }
                 else ResolverEmpatDirecte();
                 break;
@@ -155,8 +168,19 @@ public class MinijocUIManager : MonoBehaviour
                 if (contAcaparament != null)
                 {
                     contAcaparament.style.display = DisplayStyle.Flex;
-                    MinijocAcaparamentMiradesLogic logic = GetComponent<MinijocAcaparamentMiradesLogic>();
-                    if (logic != null) { logic.InicialitzarUI(root); logic.IniciarMinijoc(); }
+                    MinijocAcaparamentMiradesLogic logic = GetComponent<MinijocAcaparamentMiradesLogic>() ?? gameObject.AddComponent<MinijocAcaparamentMiradesLogic>();
+                    
+                    // Determinar si som l'atacant o el defensor
+                    bool socAtacant = false;
+                    if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
+                    {
+                        socAtacant = (GameManager.Instance.localPlayer == _atacant);
+                    }
+                    
+                    Debug.Log("[MinijocUI] Inicialitzant AcaparamentMirades (Atacant=" + socAtacant + ")...");
+                    logic.SetRole(socAtacant);
+                    logic.InicialitzarUI(root); 
+                    logic.IniciarMinijoc(); 
                 }
                 else ResolverEmpatDirecte();
                 break;
@@ -201,8 +225,7 @@ public class MinijocUIManager : MonoBehaviour
         // 3.1 Tancar el GameObject del Manager
         gameObject.SetActive(false);
 
-        // 3.2 Notificar al jugador local del resultat
-        bool localHaGuanyat = (nomGuanyador == "Jugador 1"); // Assumim J1 és el local en aquesta arquitectura
+        // 3.2 Notificar als jugadors del resultat
         
         Player localPlayer = null;
         Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
@@ -215,26 +238,41 @@ public class MinijocUIManager : MonoBehaviour
             }
         }
 
-        if (localPlayer != null)
+        // 3. EFECTE DE XOC / EMPENTA (Knockback) per als dos jugadors
+        if (_jugador1 != null && _jugador2 != null)
         {
-            if (localHaGuanyat) localPlayer.GuanyarMinijoc();
-            else localPlayer.PerdreMinijoc();
+            Player p1 = _jugador1.GetComponent<Player>();
+            Player p2 = _jugador2.GetComponent<Player>();
+            if (p1 != null && p2 != null)
+            {
+                p1.AplicarEmpenta(_jugador2.transform.position);
+                p2.AplicarEmpenta(_jugador1.transform.position);
+            }
         }
 
-        if (nomGuanyador == "Empat")
+        // 4. PROCESSAR RESULTATS LOCALS I VISUALS
+        if (nomGuanyador != "Empat")
         {
-            if (_atacant != null && _defensor != null)
+            // Determinar qui ha guanyat i qui ha perdut
+            Player pGuanyador = (nomGuanyador == "Jugador 1") ? _jugador1 : _jugador2;
+            Player pPerdedor = (nomGuanyador == "Jugador 1") ? _jugador2 : _jugador1;
+
+            // El guanyador SEMPRE es pot moure
+            if (pGuanyador != null) pGuanyador.GuanyarMinijoc();
+
+            // El perdedor rep el càstig
+            if (pPerdedor != null)
             {
-                Rigidbody2D rbAtacant = _atacant.GetComponent<Rigidbody2D>();
-                Rigidbody2D rbDefensor = _defensor.GetComponent<Rigidbody2D>();
-                if (rbAtacant != null && rbDefensor != null)
-                {
-                    Vector2 dirAtacant = (_atacant.transform.position - _defensor.transform.position).normalized;
-                    if (dirAtacant == Vector2.zero) dirAtacant = Vector2.left;
-                    rbAtacant.AddForce(dirAtacant * 10f, ForceMode2D.Impulse);
-                    rbDefensor.AddForce(-dirAtacant * 10f, ForceMode2D.Impulse);
-                }
+                if (pPerdedor == localPlayer) pPerdedor.ProcesarDerrota(8f);
+                else pPerdedor.AplicarEfecteVisualDerrota(8f);
             }
+        }
+        else
+        {
+            // CAS D'EMPAT: Desbloquegem als dos immediatament
+            Debug.Log("[MinijocUI] Empat detectat. Desbloquejant ambdós jugadors.");
+            if (_jugador1 != null) _jugador1.GuanyarMinijoc();
+            if (_jugador2 != null) _jugador2.GuanyarMinijoc();
         }
 
         bool defensorHaPerdut = false;
@@ -282,7 +320,10 @@ public class MinijocUIManager : MonoBehaviour
         switch (_activeMinigameId)
         {
             case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreActualitzacioXarxa(data); break;
+            case 2: GetComponent<MinijocParellsSenarsLogic>()?.RebreActualitzacioXarxa(data); break;
+            case 3: GetComponent<MinijocAturaBarraLogic>()?.RebreActualitzacioXarxa(data); break;
             case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreActualitzacioXarxa(data); break;
+            case 6: GetComponent<MinijocAcaparamentMiradesLogic>()?.RebreActualitzacioXarxa(data); break;
             // Altres minijocs poden ignorar o implementar segons calgui
         }
     }
@@ -297,11 +338,9 @@ public class MinijocUIManager : MonoBehaviour
         switch (_activeMinigameId)
         {
             case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreResultatXarxa(winner); break;
-            case 2: GetComponent<MinijocParellsSenarsLogic>()?.RebreResultatXarxa(winner); break;
             case 3: GetComponent<MinijocAturaBarraLogic>()?.RebreResultatXarxa(winner); break;
             case 4: GetComponent<MinijocCablePelatLogic>()?.RebreResultatXarxa(winner); break;
             case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreResultatXarxa(winner); break;
-            case 6: GetComponent<MinijocAcaparamentMiradesLogic>()?.RebreResultatXarxa(winner); break;
         }
     }
     // ---------------------------------------

@@ -17,7 +17,7 @@ public class MenuManager : MonoBehaviour
     private ListView llistaPartides;
     private ListView llistaJugadorsSala;
     private string baseUrl = "http://localhost:3000/api";
-    private string currentRoomId;
+    public string currentRoomId;
     public string userId;
     public GameData currentRoomData;
     public string currentSkin = "Woodcutter";
@@ -232,6 +232,11 @@ public class MenuManager : MonoBehaviour
 
     private void AlRebreActualitzacioSales(string dadesJSON)
     {
+        if (dadesJSON.Contains("MINIJOC"))
+        {
+            Debug.Log($"[REBUT] Missatge MINIJOC: {dadesJSON}");
+        }
+
         try
         {
             // Intentem processar PLAYER_MOVE
@@ -401,35 +406,57 @@ public class MenuManager : MonoBehaviour
                     {
                         EnqueueMainThread(() =>
                         {
-                            // 2.2 Recerca robusta del manager (inclús inactiu)
-                            // En aquest patró estricte, TOTHOM (Host i Client) utilitza aquest camí
-                            var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
-                            if (managers.Length > 0)
+                            // 2.2 Recerca del manager
+                            var ui = MinijocUIManager.Instance;
+                            if (ui == null)
                             {
-                                var ui = managers[0];
-                                
+                                var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
+                                if (managers.Length > 0) ui = managers[0];
+                            }
+
+                            if (ui != null)
+                            {
                                 Debug.Log("[SISTEMA] Rebut MINIJOC_START confirmant per xarxa. Activant UI sincronitzada...");
                                 ui.gameObject.SetActive(true);
 
-                                // Buscar els GameObjects dels lluitadors per passar-los al manager
-                                GameObject g1 = GameObject.Find(startMsg.p1);
-                                GameObject g2 = GameObject.Find(startMsg.p2);
+                                // Buscar els GameObjects dels lluitadors de forma robusta
+                                GameObject g1 = null;
+                                GameObject g2 = null;
+
+                                if (GameManager.Instance != null)
+                                {
+                                    System.Func<string, GameObject> buscarGO = (nom) => {
+                                        if (nom == userId || nom == WebSocketClient.LocalUsername)
+                                            return GameManager.Instance.localPlayer != null ? GameManager.Instance.localPlayer.gameObject : null;
+                                        if (GameManager.Instance.remotePlayers.ContainsKey(nom))
+                                            return GameManager.Instance.remotePlayers[nom].gameObject;
+                                        return null;
+                                    };
+
+                                    g1 = buscarGO(startMsg.p1);
+                                    g2 = buscarGO(startMsg.p2);
+                                }
 
                                 if (g1 != null && g2 != null)
                                 {
-                                    // 2.3 Inicialitzar amb l'índex EXACTE rebut de la xarxa
+                                    // Forçar reset si el missatge ve de xarxa per evitar quedarnos bloquejats
+                                    ui.minijocActiu = false; 
                                     ui.IniciarMinijoc(g1, g2, startMsg.gameIndex);
                                 }
                                 else
                                 {
-                                    Debug.LogError("[SISTEMA] Error crític: No s'han trobat els GameObjects dels jugadors per nom.");
+                                    Debug.LogError($"[SISTEMA] Error crític: No s'han trobat els GO per {startMsg.p1} o {startMsg.p2}.");
                                 }
                             }
                             else
                             {
-                                Debug.LogError("[SISTEMA] Error crític: No s'ha trobat el MinijocUIManager a l'escena.");
+                                Debug.LogError("[SISTEMA] Error crític: No s'ha trobat el MinijocUIManager.");
                             }
                         });
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[SISTEMA] MINIJOC_START ignorat (No implicat). P1={startMsg.p1}, P2={startMsg.p2}, Jo={WebSocketClient.LocalUsername}");
                     }
                 }
                 return;
@@ -446,9 +473,12 @@ public class MenuManager : MonoBehaviour
                     if (msg.username == userId)
                     {
                         WebSocketClient.Username = msg.username;
+                        WebSocketClient.LocalUsername = msg.username;
                         WebSocketClient.Team = msg.team;
                         WebSocketClient.ColorName = msg.color;
-                        Debug.Log($"Dades de partida guardades per a {msg.username}: Equip={msg.team}, Color={msg.color}");
+                        WebSocketClient.RoomId = msg.roomId;
+                        currentRoomId = msg.roomId;
+                        Debug.Log($"Dades de partida guardades per a {msg.username}: Equip={msg.team}, Color={msg.color}, RoomId={msg.roomId}");
 
                         EnqueueMainThread(() =>
                         {
@@ -601,6 +631,7 @@ public class MenuManager : MonoBehaviour
         public string username;
         public string team;
         public string color;
+        public string roomId;
     }
 
     [System.Serializable]
@@ -625,18 +656,47 @@ public class MenuManager : MonoBehaviour
     public class MinigameStartMessage
     {
         public string type = "MINIJOC_START";
+        public string roomId;
         public int gameIndex;
         public string p1;
         public string p2;
     }
 
+    public void EnviarMinijocStart(int index, string p1, string p2)
+    {
+        string idSala = currentRoomId;
+        if (string.IsNullOrEmpty(idSala)) idSala = WebSocketClient.RoomId;
+
+        if (websocket != null && websocket.State == WebSocketState.Open && !string.IsNullOrEmpty(idSala))
+        {
+            MinigameStartMessage msg = new MinigameStartMessage
+            {
+                type = "MINIJOC_START",
+                roomId = idSala,
+                p1 = p1,
+                p2 = p2,
+                gameIndex = index
+            };
+            string json = JsonUtility.ToJson(msg);
+            Debug.Log($"[ENVIAMENT] Iniciant minijoc a sala {idSala}: {json}");
+            websocket.SendText(json);
+        }
+        else
+        {
+            Debug.LogWarning($"[ERROR] No es pot enviar MINIJOC_START. RoomId={idSala}");
+        }
+    }
+
     public void EnviarMinijocUpdate(string data)
     {
-        if (websocket != null && websocket.State == WebSocketState.Open && currentRoomId != null)
+        string idSala = currentRoomId;
+        if (string.IsNullOrEmpty(idSala)) idSala = WebSocketClient.RoomId;
+
+        if (websocket != null && websocket.State == WebSocketState.Open && !string.IsNullOrEmpty(idSala))
         {
             MinigameUpdateMessage msg = new MinigameUpdateMessage
             {
-                roomId = currentRoomId,
+                roomId = idSala,
                 username = userId,
                 data = data
             };
@@ -646,11 +706,14 @@ public class MenuManager : MonoBehaviour
 
     public void EnviarMinijocResult(string winner)
     {
-        if (websocket != null && websocket.State == WebSocketState.Open && currentRoomId != null)
+        string idSala = currentRoomId;
+        if (string.IsNullOrEmpty(idSala)) idSala = WebSocketClient.RoomId;
+
+        if (websocket != null && websocket.State == WebSocketState.Open && !string.IsNullOrEmpty(idSala))
         {
             MinigameResultMessage msg = new MinigameResultMessage
             {
-                roomId = currentRoomId,
+                roomId = idSala,
                 username = userId,
                 winner = winner
             };

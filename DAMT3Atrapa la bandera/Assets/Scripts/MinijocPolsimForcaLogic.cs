@@ -22,10 +22,20 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         barraJ1 = root.Q<VisualElement>("BarraJ1Pols");
         btnPrem = root.Q<Button>("BtnPrem");
 
-        if (btnPrem != null) { btnPrem.clicked -= () => ActualitzarPuntuacions(1); btnPrem.clicked += () => ActualitzarPuntuacions(1); }
+        if (btnPrem != null) 
+        {
+            btnPrem.clicked -= OnBtnClicked;
+            btnPrem.clicked += OnBtnClicked;
+        }
 
         if (textResultat != null) textResultat.text = "";
-        Debug.Log("UI de Polsim de Força inicialitzada.");
+        Debug.Log($"UI de Polsim de Força inicialitzada. Botó={btnPrem != null}");
+    }
+
+    private void OnBtnClicked()
+    {
+        Debug.Log("[PolsimForca] Botó Click detectat!");
+        ActualitzarPuntuacions(1);
     }
 
     public void IniciarMinijoc()
@@ -53,19 +63,10 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
                 return;
             }
 
-            // Entrada Jugador 1: Espai o Clic Esquerre
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+            // Entrada Jugador Local: Qualsevol tecla d'acció (Espai, Return o Clic)
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
             {
                 ActualitzarPuntuacions(1);
-            }
-
-            // Entrada Jugador 2: Return o Clic (any click or Right Click)
-            // Task says "Prem Space, Return o clic (Input.GetMouseButtonDown(0))"
-            // Wait, if both use GetMouseButtonDown(0) it's shared.
-            // Let's use Return for J2 and Space/Click for J1.
-            if (Input.GetKeyDown(KeyCode.Return))
-            {
-                ActualitzarPuntuacions(2);
             }
 
             ActualitzarUI();
