@@ -94,7 +94,7 @@ GameObject:
   - component: {fileID: 8455485875974241146}
   m_Layer: 0
   m_Name: BanderaDino_Vermell
-  m_TagString: Untagged
+  m_TagString: Dinosaurio
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
