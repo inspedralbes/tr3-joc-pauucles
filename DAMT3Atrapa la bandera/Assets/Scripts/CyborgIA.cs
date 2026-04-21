@@ -88,10 +88,10 @@ public class CyborgIA : Agent
         if (act == 3 && Mathf.Abs(rb.linearVelocity.y) < 0.05f)
         {
             rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-            if (anim != null)
+            /* if (anim != null)
             {
                 anim.SetTrigger("Jump");
-            }
+            } */
         }
 
         // Actualizar animaciones

@@ -7,7 +7,7 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-    command: mlagents-learn /workspace/simple.yaml --run-id=IA_Final --force
+    command: mlagents-learn /workspace/simple.yaml --run-id=IA_Retrain --force --timeout-wait 300
     ports:
       - "5004:5004"
     tty: true
