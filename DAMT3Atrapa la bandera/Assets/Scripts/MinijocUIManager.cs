@@ -81,6 +81,34 @@ public class MinijocUIManager : MonoBehaviour
         
         Debug.Log($"[MinijocUI] Iniciant minijoc sincronitzat (Index: {forcarGameIndex})");
 
+        // --- ESTILITZACIÓ PROCEDURAL (Task 3.1 i 3.2) ---
+        Color fonsFosc = new Color(0, 0, 0, 0.85f);
+        
+        // 3.1 Aplicar fons a tots els contenidors de minijoc
+        string[] contenidors = { "ContenidorPPTLLS", "ContenidorParellsSenars", "ContenidorAturaBarra", "ContenidorPolsimForca", "ContenidorAcaparament" };
+        foreach (var nom in contenidors)
+        {
+            VisualElement c = root.Q<VisualElement>(nom);
+            if (c != null) c.style.backgroundColor = fonsFosc;
+        }
+
+        // 3.2 Estilitzar botons de forma global
+        root.Query<Button>().ForEach(btn => {
+            btn.style.backgroundColor = Color.black;
+            btn.style.color = Color.white;
+            btn.style.minWidth = 100;
+            btn.style.minHeight = 50;
+            btn.style.borderTopWidth = 1;
+            btn.style.borderBottomWidth = 1;
+            btn.style.borderLeftWidth = 1;
+            btn.style.borderRightWidth = 1;
+            btn.style.borderTopColor = Color.white;
+            btn.style.borderBottomColor = Color.white;
+            btn.style.borderLeftColor = Color.white;
+            btn.style.borderRightColor = Color.white;
+        });
+        // ------------------------------------------------
+
         minijocActiu = true;
 
         // Obtenir components Player i bloquejar moviment

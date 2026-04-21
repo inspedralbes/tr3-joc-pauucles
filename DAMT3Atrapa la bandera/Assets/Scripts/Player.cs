@@ -20,7 +20,8 @@ public class Player : MonoBehaviour
     private static float ultimXoc = 0f;
     private static int comptadorCombats = 0;
 
-    private int lives = 5;
+    private int lives = 3;
+    private int maxLives = 3;
     private bool isFrozen = false;
     private bool isInvulnerable = false;
     private Rigidbody2D rb;
@@ -427,7 +428,7 @@ public class Player : MonoBehaviour
         Debug.Log($"[RESPAWN] {username} ha mort. Tornant a la base de l'equip {equip}.");
         
         // Reset de vides local
-        lives = 5;
+        lives = maxLives;
         UpdateLivesUI();
 
         // Trobar punt de spawn
@@ -495,42 +496,58 @@ public class Player : MonoBehaviour
     private void UpdateLivesUI()
     {
         // Guard de seguretat: Només el jugador local pot tocar la UI global de vides
-        if (GetComponent<RemotePlayer>() != null) return;
+        if (GetComponent<RemotePlayer>() != null || uiDocument == null) return;
 
-        if (lifeIcons.Count == 0) {
-            // Intentar re-vincular de forma agressiva: busquem a TOTS els UIDocuments de l'escena
-            UIDocument[] allUI = Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None);
-            foreach (var doc in allUI)
-            {
-                if (doc.rootVisualElement == null) continue;
-                
-                var icon1 = doc.rootVisualElement.Query<VisualElement>("Vida1").First();
-                if (icon1 != null)
-                {
-                    Debug.Log($"[HUD] Trobada PantallaHUD al UIDocument de {doc.gameObject.name}. Vinculant...");
-                    lifeIcons.Clear();
-                    for (int i = 1; i <= 5; i++)
-                    {
-                        var icon = doc.rootVisualElement.Query<VisualElement>("Vida" + i).First();
-                        if (icon != null) lifeIcons.Add(icon);
-                    }
-                    break; 
-                }
-            }
+        VisualElement root = uiDocument.rootVisualElement;
+        if (root == null) return;
+
+        // 1. Cercar o crear el contenidor absolut HUD_Vides
+        VisualElement hudVides = root.Q<VisualElement>("HUD_Vides");
+        if (hudVides == null)
+        {
+            hudVides = new VisualElement();
+            hudVides.name = "HUD_Vides";
+            hudVides.style.position = Position.Absolute;
+            hudVides.style.top = 20;
+            hudVides.style.left = 20;
+            hudVides.style.flexDirection = FlexDirection.Row;
+            root.Add(hudVides);
+            Debug.Log("[HUD] Creat nou contenidor 'HUD_Vides' al root.");
         }
 
-        Debug.Log($"[HUD] Actualitzant visualment {lifeIcons.Count} icones per a {lives} vides.");
-        for (int i = 0; i < lifeIcons.Count; i++)
+        // 2. Netejar i redibuixar els cors segons la vida actual
+        hudVides.Clear();
+        
+        // Intentar carregar l'sprite iconaVida des de Resources si no el tenim
+        Sprite spriteVida = Resources.Load<Sprite>("Sprites/iconaVida");
+        if (spriteVida == null)
         {
-            if (i < lives)
+            // Fallback: buscar un sprite amb aquest nom a l'escena o actius carregats
+            var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+            foreach (var s in sprites) { if (s.name == "iconaVida") { spriteVida = s; break; } }
+        }
+
+        for (int i = 0; i < lives; i++)
+        {
+            VisualElement cor = new VisualElement();
+            cor.style.width = 40;
+            cor.style.height = 40;
+            cor.style.marginLeft = 5;
+            cor.style.marginRight = 5;
+            
+            if (spriteVida != null)
             {
-                lifeIcons[i].style.display = DisplayStyle.Flex;
+                cor.style.backgroundImage = new StyleBackground(spriteVida);
             }
             else
             {
-                lifeIcons[i].style.display = DisplayStyle.None;
+                cor.style.backgroundColor = Color.red; // Fallback visual
             }
+            
+            hudVides.Add(cor);
         }
+
+        Debug.Log($"[HUD] Actualitzat HUD de vides: {lives} cors dibuixats.");
     }
 
     private System.Collections.IEnumerator HandleWinCoroutine(int duration)
@@ -564,7 +581,7 @@ public class Player : MonoBehaviour
 
         yield return new WaitForSeconds(duration);
 
-        lives = 5;
+        lives = maxLives;
         UpdateLivesUI();
         sr.color = originalColor;
         isFrozen = false;

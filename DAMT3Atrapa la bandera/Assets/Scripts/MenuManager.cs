@@ -281,10 +281,29 @@ public class MenuManager : MonoBehaviour
                 RoomListMessage listMsg = JsonUtility.FromJson<RoomListMessage>(dadesJSON);
                 if (listMsg != null && listMsg.sales != null)
                 {
+                    List<GameData> salesFiltrades = new List<GameData>();
+                    DateTime deuMinutsEnrere = DateTime.UtcNow.AddMinutes(-10);
+
+                    foreach (var sala in listMsg.sales)
+                    {
+                        if (sala.status == "waiting" && !string.IsNullOrEmpty(sala.createdAt))
+                        {
+                            if (DateTime.TryParse(sala.createdAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime dataCreacio))
+                            {
+                                if (dataCreacio.ToUniversalTime() < deuMinutsEnrere)
+                                {
+                                    Debug.Log($"[LOBBY] Ignorant sala obsoleta: {sala.roomId} (Creada: {dataCreacio})");
+                                    continue;
+                                }
+                            }
+                        }
+                        salesFiltrades.Add(sala);
+                    }
+
                     EnqueueMainThread(() =>
                     {
-                        ConfigurarLlistaPartides(listMsg.sales);
-                        Debug.Log("Llista de sales actualitzada per WebSocket");
+                        ConfigurarLlistaPartides(salesFiltrades.ToArray());
+                        Debug.Log("Llista de sales actualitzada per WebSocket (Filtrada)");
                     });
                 }
                 return;
@@ -568,6 +587,7 @@ public class MenuManager : MonoBehaviour
         public int maxPlayers;
         public PlayerData[] players;
         public string status;
+        public string createdAt;
     }
 
     [System.Serializable]
@@ -1074,7 +1094,25 @@ public class MenuManager : MonoBehaviour
 
             if (wrapper != null && wrapper.games != null)
             {
-                ConfigurarLlistaPartides(wrapper.games);
+                List<GameData> salesFiltrades = new List<GameData>();
+                DateTime deuMinutsEnrere = DateTime.UtcNow.AddMinutes(-10);
+
+                foreach (var sala in wrapper.games)
+                {
+                    if (sala.status == "waiting" && !string.IsNullOrEmpty(sala.createdAt))
+                    {
+                        if (DateTime.TryParse(sala.createdAt, null, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime dataCreacio))
+                        {
+                            if (dataCreacio.ToUniversalTime() < deuMinutsEnrere)
+                            {
+                                Debug.Log($"[API] Ignorant sala obsoleta: {sala.roomId} (Creada: {dataCreacio})");
+                                continue;
+                            }
+                        }
+                    }
+                    salesFiltrades.Add(sala);
+                }
+                ConfigurarLlistaPartides(salesFiltrades.ToArray());
             }
             else
             {
