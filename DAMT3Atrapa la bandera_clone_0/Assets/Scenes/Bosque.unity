@@ -11600,7 +11600,7 @@ TilemapRenderer:
   m_MaxChunkCount: 16
   m_MaxFrameAge: 16
   m_SortOrder: 0
-  m_Mode: 0
+  m_Mode: 1
   m_DetectChunkCullingBounds: 0
   m_MaskInteraction: 0
 --- !u!1839735485 &584269178
@@ -47080,7 +47080,7 @@ TilemapRenderer:
   m_MaxChunkCount: 16
   m_MaxFrameAge: 16
   m_SortOrder: 0
-  m_Mode: 0
+  m_Mode: 1
   m_DetectChunkCullingBounds: 0
   m_MaskInteraction: 0
 --- !u!1839735485 &1463279206
@@ -114005,8 +114005,16 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3871405299149490763, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
+      propertyPath: m_Model
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871405299149490763, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3871405299149490763, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
       propertyPath: m_BrainParameters.VectorObservationSize
-      value: 11
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 3871405299149490763, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
       propertyPath: m_BrainParameters.VectorActionSize.Array.size
@@ -114043,6 +114051,10 @@ PrefabInstance:
     - target: {fileID: 5509353393699104783, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
       propertyPath: m_Name
       value: Cyborg
+      objectReference: {fileID: 0}
+    - target: {fileID: 5509353393699104783, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8188110965907988809, guid: 86bf4f2deeeea08459c06b02692b2276, type: 3}
       propertyPath: MaxStep

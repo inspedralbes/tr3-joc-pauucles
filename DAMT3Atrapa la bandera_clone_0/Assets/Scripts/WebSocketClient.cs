@@ -15,7 +15,7 @@ public class WebSocketClient : MonoBehaviour
     public static string RoomId;
 
     private WebSocket websocket;
-    private string serverUrl = "ws://204.168.215.211/api";
+    private string serverUrl = "ws://204.168.215.211/api/";
 
     // Cua d'execució per al fil principal
     private readonly Queue<Action> _executionQueue = new Queue<Action>();
@@ -41,32 +41,12 @@ public class WebSocketClient : MonoBehaviour
         }
     }
 
-    async void Start()
+    void Start()
     {
-        websocket = new WebSocket(serverUrl);
-
-        websocket.OnOpen += () =>
-        {
-            Debug.Log("Connexió WebSocket establerta amb " + serverUrl);
-        };
-
-        websocket.OnError += (e) =>
-        {
-            Debug.LogError("Error WebSocket: " + e);
-        };
-
-        websocket.OnClose += (e) =>
-        {
-            Debug.Log("WebSocket desconnectat");
-        };
-
-        websocket.OnMessage += (bytes) =>
-        {
-            var message = System.Text.Encoding.UTF8.GetString(bytes);
-            ProcessMessage(message);
-        };
-
-        await websocket.Connect();
+        // DESACTIVADO PARA EVITAR CUELGUES (DEADLOCKS) DEL EDITOR.
+        // La conexión real ya se gestiona en MenuManager.cs.
+        // Si pruebas la escena Bosque directamente, no intentará conectar 
+        // y podrás moverte y probar sin que explote Unity.
     }
 
     void Update()

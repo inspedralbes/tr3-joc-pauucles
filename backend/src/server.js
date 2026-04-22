@@ -1,3 +1,4 @@
+
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -38,7 +39,7 @@ wss.on("connection", (ws, req) => {
                 if (updatedGame) {
                     // 4) Un cop guardat, fer el broadcast de 'ROOM_UPDATED'
                     await gameController.broadcastToRoom(updatedGame);
-                    
+
                     // 5) Just després, comprovar si tots estan llestos usant les dades fresques
                     const startedGame = await gameService.checkGameStart(msg.roomId, updatedGame);
                     if (startedGame) {
@@ -58,12 +59,12 @@ wss.on("connection", (ws, req) => {
                 await gameController.broadcastRoomUpdates();
             }
 
-            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER" || 
+            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER" ||
                 msg.type === "MINIJOC_START" || msg.type === "MINIJOC_UPDATE" || msg.type === "MINIJOC_RESULT") {
                 // Broadcast simple a tots els clients connectats
                 const message = JSON.stringify(msg);
                 console.log(`[RELAY] Retransmetent missatge ${msg.type} de ${msg.username || 'unknown'} a la sala ${msg.roomId}`);
-                
+
                 wss.clients.forEach((client) => {
                     if (client !== ws && client.readyState === WebSocket.OPEN) {
                         client.send(message);
