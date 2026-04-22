@@ -24,8 +24,9 @@ const { router: gameRouter, gameService, gameController } = gameRoutes(wss);
 app.use('/api/games', gameRouter);
 
 // Listener de connexió WebSocket
-wss.on("connection", (ws) => {
-    console.log("Client connectat via WebSocket pur");
+wss.on("connection", (ws, req) => {
+    const ip = req.socket.remoteAddress;
+    console.log(`[WS] Nou client connectat des de: ${ip}`);
 
     ws.on("message", async (data) => {
         try {

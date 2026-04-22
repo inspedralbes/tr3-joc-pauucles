@@ -15,7 +15,7 @@ public class WebSocketClient : MonoBehaviour
     public static string RoomId;
 
     private WebSocket websocket;
-    private string serverUrl = "ws://localhost:3000";
+    private string serverUrl = "ws://204.168.215.211/api";
 
     // Cua d'execució per al fil principal
     private readonly Queue<Action> _executionQueue = new Queue<Action>();

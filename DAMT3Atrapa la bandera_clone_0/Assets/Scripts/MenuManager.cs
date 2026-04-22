@@ -16,7 +16,7 @@ public class MenuManager : MonoBehaviour
     private VisualElement pantallaSalaEspera;
     private ListView llistaPartides;
     private ListView llistaJugadorsSala;
-    private string baseUrl = "http://localhost:3000/api";
+    private string baseUrl = "http://204.168.215.211/api";
     public string currentRoomId;
     public string userId;
     public GameData currentRoomData;
@@ -117,33 +117,56 @@ public class MenuManager : MonoBehaviour
 
     async void Start()
     {
-        websocket = new WebSocket("ws://localhost:3000");
-
-        websocket.OnOpen += () =>
-        {
-            EnqueueMainThread(() => Debug.Log("Connexió WebSocket pura establerta!"));
-        };
-
-        websocket.OnError += (e) =>
-        {
-            EnqueueMainThread(() => Debug.Log("Error WebSocket: " + e));
-        };
-
-        websocket.OnClose += (e) =>
-        {
-            EnqueueMainThread(() => Debug.Log("WebSocket desconnectat"));
-        };
-
-        websocket.OnMessage += (bytes) =>
-        {
-            var message = System.Text.Encoding.UTF8.GetString(bytes);
-            AlRebreActualitzacioSales(message);
-        };
-
-        await websocket.Connect();
+        await ConnectWebSocket();
 
         // Verificació de sessió existent per evitar pantalla blava en tornar del joc
         ActualitzarVisibilitatSegonsSessio();
+    }
+
+    private async System.Threading.Tasks.Task ConnectWebSocket()
+    {
+        try
+        {
+            if (websocket != null && websocket.State == WebSocketState.Open) return;
+
+            Debug.Log("[WebSocket] Intentant connectar a ws://204.168.215.211/api/ ...");
+            websocket = new WebSocket("ws://204.168.215.211/api/");
+
+            websocket.OnOpen += () =>
+            {
+                EnqueueMainThread(() => Debug.Log("<color=green>[WebSocket] Connexió establecida!</color>"));
+            };
+
+            websocket.OnError += (e) =>
+            {
+                EnqueueMainThread(() => Debug.LogError("[WebSocket] Error: " + e));
+            };
+
+            websocket.OnClose += (e) =>
+            {
+                EnqueueMainThread(() => {
+                    Debug.LogWarning("[WebSocket] Connexió tancada. Intentant reconectar en 5 segons...");
+                    Invoke(nameof(RetryConnection), 5f);
+                });
+            };
+
+            websocket.OnMessage += (bytes) =>
+            {
+                var message = System.Text.Encoding.UTF8.GetString(bytes);
+                AlRebreActualitzacioSales(message);
+            };
+
+            await websocket.Connect();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[WebSocket] Error crític en connectar: {ex.Message}");
+        }
+    }
+
+    private void RetryConnection()
+    {
+        _ = ConnectWebSocket();
     }
 
     private void ActualitzarVisibilitatSegonsSessio()
@@ -1136,12 +1159,11 @@ public class MenuManager : MonoBehaviour
     {
         if (llistaPartides == null) return;
 
-        // Neteja obligatòria per evitar duplicats
-        llistaPartides.itemsSource = null;
-        llistaPartides.Rebuild();
-
+        // Neteja i assignació
         llistaPartides.itemsSource = games;
         llistaPartides.Rebuild();
+        
+        Debug.Log($"[UI] Llista de partides actualitzada: {games.Length} sales.");
     }
 
     private void OmplirLlistaJugadors(PlayerData[] players)

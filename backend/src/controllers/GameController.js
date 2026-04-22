@@ -43,7 +43,7 @@ class GameController {
                         client.send(message);
                     }
                 });
-                console.log("Broadcast ACTUALITZAR_SALES enviat a tots els clients.");
+                console.log(`[WS] Broadcast ACTUALITZAR_SALES enviat a ${this.wss.clients.size} clients.`);
             } else {
                 console.log('No s\'ha pogut fer el broadcast: wss o wss.clients no estan disponibles');
             }
@@ -68,7 +68,7 @@ class GameController {
                         client.send(message);
                     }
                 });
-                console.log(`Broadcast ROOM_UPDATED enviat per a la sala ${roomId}`);
+                console.log(`[WS] Broadcast ROOM_UPDATED enviat per a la sala ${roomId} (${this.wss.clients.size} clients conectats)`);
             } else {
                 console.log('No s\'ha pogut fer el broadcast: wss o wss.clients no estan disponibles');
             }
