@@ -2,13 +2,18 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const connectDB = require('./db');
 const gameRoutes = require('./routes/gameRoutes');
+
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 
-// Inicialització del servidor WebSocket compartint el servidor HTTP
+// Conectar a la base de datos
+connectDB();
+
 const wss = new WebSocket.Server({ server });
 
 app.use(cors());
@@ -17,13 +22,15 @@ app.use(express.json());
 const { router: gameRouter, gameService, gameController } = gameRoutes(wss);
 app.use('/api/games', gameRouter);
 
-// Listener de connexió WebSocket (Lògica extreta de server.js)
-wss.on("connection", (ws) => {
-    console.log("Client connectat via WebSocket al Game Service");
+// Listener de conexió WebSocket (migrat de server.js)
+wss.on("connection", (ws, req) => {
+    const ip = req.socket.remoteAddress;
+    console.log(`[WS GameService] Nou client connectat des de: ${ip}`);
 
     ws.on("message", async (data) => {
         try {
             const msg = JSON.parse(data);
+            console.log("Missatge rebut:", msg);
 
             if (msg.type === "READY") {
                 const updatedGame = await gameService.setReady(msg.roomId, msg.username);
@@ -33,6 +40,7 @@ wss.on("connection", (ws) => {
                     if (startedGame) {
                         await gameController.broadcastGameStart(startedGame);
                         await gameController.broadcastRoomUpdates();
+                        console.log(`Partida iniciada oficialment a la sala: ${msg.roomId}`);
                     }
                 }
             }
@@ -57,13 +65,13 @@ wss.on("connection", (ws) => {
         }
     });
 
-    ws.on("close", () => console.log("Client desconnectat"));
+    ws.on("close", () => {
+        console.log("Client desconnectat del WebSocket");
+    });
 });
 
-// Connect to DB and Start Server
-connectDB().then(() => {
-    const PORT = process.env.GAME_PORT || 3002;
-    server.listen(PORT, () => {
-        console.log(`Game Service (WebSockets) funcionant al port ${PORT}`);
-    });
+const PORT = process.env.GAME_PORT || 3002;
+
+server.listen(PORT, () => {
+    console.log(`Game Service funcionant al port ${PORT}`);
 });

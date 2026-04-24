@@ -4,8 +4,12 @@
   "description": "Esquema mínim de carpetes pels projectes transversals",
   "main": "backend/src/server.js",
   "scripts": {
-    "start": "node backend/src/server.js",
-    "dev": "node backend/src/server.js"
+    "start": "node backend/src/identity-service.js",
+    "start:identity": "node backend/src/identity-service.js",
+    "start:game": "node backend/src/game-service.js",
+    "dev": "nodemon backend/src/identity-service.js",
+    "seed": "node backend/seed.js",
+    "test:repos": "node backend/src/testRepositories.js && node backend/src/testGameRepository.js && node backend/src/testResultRepository.js"
   },
   "repository": {
     "type": "git",
