@@ -55,7 +55,11 @@ public class Bandera : MonoBehaviour
                 {
                     // CAPTURA JERÀRQUICA: Ens fem fills del jugador
                     transform.SetParent(collision.transform);
-                    transform.localPosition = new Vector3(mySprite.flipX ? 0.5f : -0.5f, 0f, 0f);
+                    
+                    // Seguretat per al SpriteRenderer
+                    if (mySprite == null) mySprite = GetComponentInChildren<SpriteRenderer>();
+                    float offsetX = (mySprite != null && mySprite.flipX) ? 0.5f : -0.5f;
+                    transform.localPosition = new Vector3(offsetX, 0f, 0f);
                     
                     // Registrem la bandera al jugador
                     player.banderaAgafada = this.transform;

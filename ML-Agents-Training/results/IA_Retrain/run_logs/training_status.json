@@ -1,32 +1,26 @@
 {
-    "SimpleBehavior": {
+    "spawn_distance": {
+        "lesson_num": 0
+    },
+    "DronAI": {
         "checkpoints": [
             {
-                "steps": 499943,
-                "file_path": "results/IA_Retrain/SimpleBehavior/SimpleBehavior-499943.onnx",
-                "reward": -0.5150001063011587,
-                "creation_time": 1776790875.5526156,
+                "steps": 0,
+                "file_path": "results/IA_Retrain/DronAI/DronAI-0.onnx",
+                "reward": null,
+                "creation_time": 1776988357.0327203,
                 "auxillary_file_paths": [
-                    "results/IA_Retrain/SimpleBehavior/SimpleBehavior-499943.pt"
-                ]
-            },
-            {
-                "steps": 500007,
-                "file_path": "results/IA_Retrain/SimpleBehavior/SimpleBehavior-500007.onnx",
-                "reward": -0.5150001063011587,
-                "creation_time": 1776790875.7263744,
-                "auxillary_file_paths": [
-                    "results/IA_Retrain/SimpleBehavior/SimpleBehavior-500007.pt"
+                    "results/IA_Retrain/DronAI/DronAI-0.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 500007,
-            "file_path": "results/IA_Retrain/SimpleBehavior.onnx",
-            "reward": -0.5150001063011587,
-            "creation_time": 1776790875.7263744,
+            "steps": 0,
+            "file_path": "results/IA_Retrain/DronAI.onnx",
+            "reward": null,
+            "creation_time": 1776988357.0327203,
             "auxillary_file_paths": [
-                "results/IA_Retrain/SimpleBehavior/SimpleBehavior-500007.pt"
+                "results/IA_Retrain/DronAI/DronAI-0.pt"
             ]
         }
     },

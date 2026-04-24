@@ -76,6 +76,13 @@ public class Player : MonoBehaviour
             if (WebSocketClient.Team.ToLower() == "rojo" || WebSocketClient.Team.ToLower() == "vermell") idJugador = 1;
             else if (WebSocketClient.Team.ToLower() == "azul" || WebSocketClient.Team.ToLower() == "blau") idJugador = 2;
         }
+        else
+        {
+            // PROVES LOCALS: Si no venim del menú, assignem un equip per defecte
+            if (string.IsNullOrEmpty(equip)) equip = "A";
+            idJugador = 1;
+            Debug.Log("[Player] Modo PROVA LOCAL: Equip 'A' assignat automàticament.");
+        }
     }
 
     void Update()
