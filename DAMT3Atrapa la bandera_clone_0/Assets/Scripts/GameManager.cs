@@ -15,7 +15,17 @@ public class GameManager : MonoBehaviour
     public GameObject banderaGroga;
     public GameObject banderaVerda;
 
-    [Header("Prefabs per Skin")]
+    [System.Serializable]
+    public struct SkinMapping
+    {
+        public string nomSkin;
+        public GameObject prefab;
+    }
+
+    [Header("Configuració de Skins")]
+    public List<SkinMapping> skinsDisponibles;
+
+    [Header("Prefabs per Skin (Obsolet - Usar llista)")]
     public GameObject prefabBiker;
     public GameObject prefabCyborg;
     public GameObject prefabGraveRobber;
@@ -99,11 +109,12 @@ public class GameManager : MonoBehaviour
 
     void InstanciarLocalPlayer()
     {
-        string skin = "Woodcutter";
+        // 2.3: Lectura de skin desada amb fallback a Woodcutter
+        string skin = PlayerPrefs.GetString("skinEquipada", "Woodcutter");
         string username = "Jugador";
+        
         if (MenuManager.Instance != null) 
         {
-            skin = MenuManager.Instance.currentSkin;
             username = !string.IsNullOrEmpty(MenuManager.Instance.userId) ? MenuManager.Instance.userId : "Jugador";
         }
 
@@ -113,6 +124,9 @@ public class GameManager : MonoBehaviour
         GameObject go = Instantiate(prefab, Vector3.zero, Quaternion.identity);
         localPlayer = go.GetComponent<Player>();
         
+        // 3.2: Actualització de càmera (Cinemachine fallback)
+        ActualitzarSeguimentCamera(go.transform);
+
         // Configuració del Nametag (TextMeshPro en els fills)
         TMPro.TextMeshPro nameText = go.GetComponentInChildren<TMPro.TextMeshPro>();
         if (nameText != null)
@@ -127,10 +141,44 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] LocalPlayer instanciat amb skin: {skin} i nom: {username}");
     }
 
+    void ActualitzarSeguimentCamera(Transform target)
+    {
+        // Intentar trobar Cinemachine Virtual Camera (via reflexió o cerca de tipus si està el package)
+        // Com que no sabem si el package està instal·lat, busquem per nom o component genèric
+        GameObject vcam = GameObject.Find("CM vcam1") ?? GameObject.FindGameObjectWithTag("MainCamera");
+        if (vcam != null)
+        {
+            // Si és MainCamera i té un script de follow personalitzat, caldria assignar-lo.
+            // Si és Cinemachine, normalment s'assigna al component CinemachineVirtualCamera.
+            var cinemachineComponent = vcam.GetComponent("CinemachineVirtualCamera");
+            if (cinemachineComponent != null)
+            {
+                var followProp = cinemachineComponent.GetType().GetProperty("Follow");
+                var lookAtProp = cinemachineComponent.GetType().GetProperty("LookAt");
+                followProp?.SetValue(cinemachineComponent, target);
+                lookAtProp?.SetValue(cinemachineComponent, target);
+                Debug.Log("[GameManager] Càmera Cinemachine actualitzada amb el nou target.");
+            }
+        }
+    }
+
     public GameObject GetPrefabPerSkin(string skinName)
     {
-        if (string.IsNullOrEmpty(skinName)) return prefabWoodcutter;
+        if (string.IsNullOrEmpty(skinName)) skinName = "Woodcutter";
 
+        // 3.1: Cerca a la llista de skins disponibles
+        if (skinsDisponibles != null)
+        {
+            foreach (var mapping in skinsDisponibles)
+            {
+                if (mapping.nomSkin == skinName && mapping.prefab != null)
+                {
+                    return mapping.prefab;
+                }
+            }
+        }
+
+        // Fallback als camps individuals (obsolets)
         if (skinName == "Biker") return prefabBiker;
         if (skinName == "Cyborg") return prefabCyborg;
         if (skinName == "GraveRobber") return prefabGraveRobber;
@@ -138,7 +186,7 @@ public class GameManager : MonoBehaviour
         if (skinName == "SteamMan") return prefabSteamMan;
         if (skinName == "Woodcutter") return prefabWoodcutter;
         
-        return prefabWoodcutter; // Defecte
+        return prefabWoodcutter; // Defecte final
     }
 
     public void InstanciarBanderes()

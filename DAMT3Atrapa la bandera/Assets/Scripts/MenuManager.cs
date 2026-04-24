@@ -14,6 +14,9 @@ public class MenuManager : MonoBehaviour
     private VisualElement pantallaLogin;
     private VisualElement pantallaLobby;
     private VisualElement pantallaSalaEspera;
+    private VisualElement pantallaTitol;
+    private Button btnStartGame;
+    private Button btnExitGame;
     private ListView llistaPartides;
     private ListView llistaJugadorsSala;
     private string baseUrl = "http://204.168.215.211/api";
@@ -191,6 +194,7 @@ public class MenuManager : MonoBehaviour
         if (popUpCrearSala != null) popUpCrearSala.style.display = DisplayStyle.None;
         if (pantallaSalaEspera != null) pantallaSalaEspera.style.display = DisplayStyle.None;
         if (pantallaInventari != null) pantallaInventari.style.display = DisplayStyle.None;
+        if (pantallaTitol != null) pantallaTitol.style.display = DisplayStyle.None;
 
         // 2.2: Lògica de commutació per a panells principals
         if (pantallaLogin != null && pantallaLobby != null)
@@ -206,9 +210,19 @@ public class MenuManager : MonoBehaviour
             }
             else
             {
-                pantallaLogin.style.display = DisplayStyle.Flex;
+                // 2.3: Mostrar pantalla de títol inicialment si no hi ha sessió
+                if (pantallaTitol != null)
+                {
+                    pantallaTitol.style.display = DisplayStyle.Flex;
+                    pantallaLogin.style.display = DisplayStyle.None;
+                }
+                else
+                {
+                    pantallaLogin.style.display = DisplayStyle.Flex;
+                }
+                
                 pantallaLobby.style.display = DisplayStyle.None;
-                Debug.Log("[MenuManager] Cap sessió activa, mostrant Login.");
+                Debug.Log("[MenuManager] Cap sessió activa, mostrant Pantalla de Títol/Login.");
             }
         }
         else
@@ -785,6 +799,7 @@ public class MenuManager : MonoBehaviour
         pantallaLobby = root.Q<VisualElement>("pantallaLobby");
         pantallaSalaEspera = root.Q<VisualElement>("pantallaSalaEspera");
         pantallaInventari = root.Q<VisualElement>("pantallaInventari");
+        pantallaTitol = root.Q<VisualElement>("PantallaTitol");
         popUpCrearSala = root.Q<VisualElement>("popUpCrearSala");
 
         // Robust null-checks
@@ -792,6 +807,7 @@ public class MenuManager : MonoBehaviour
         if (pantallaLobby == null) Debug.LogWarning("[MenuManager] No s'ha trobat 'pantallaLobby' a l'UXML.");
         if (pantallaSalaEspera == null) Debug.LogWarning("[MenuManager] No s'ha trobat 'pantallaSalaEspera' a l'UXML.");
         if (pantallaInventari == null) Debug.LogWarning("[MenuManager] No s'ha trobat 'pantallaInventari' a l'UXML.");
+        if (pantallaTitol == null) Debug.LogWarning("[MenuManager] No s'ha trobat 'PantallaTitol' a l'UXML.");
         if (popUpCrearSala == null) Debug.LogWarning("[MenuManager] No s'ha trobat 'popUpCrearSala' a l'UXML.");
 
         llistaPartides = root.Q<ListView>("llistaPartides");
@@ -855,11 +871,27 @@ public class MenuManager : MonoBehaviour
         btnAnarSkins = root.Q<Button>("btnAnarSkins");
         btnEquiparSkin = root.Q<Button>("btnEquiparSkin");
         btnTancarInventari = root.Q<Button>("btnTancarInventari");
+        btnStartGame = root.Q<Button>("btnStartGame");
+        btnExitGame = root.Q<Button>("btnExitGame");
 
         // 1.3: Usar -= abans de += per evitar duplicitats
         if (btnReg != null) { btnReg.clicked -= () => RegistrarUsuari(inputNom?.value, inputPass?.value); btnReg.clicked += () => RegistrarUsuari(inputNom?.value, inputPass?.value); }
         if (btnLog != null) { btnLog.clicked -= () => FerLogin(inputNom?.value, inputPass?.value); btnLog.clicked += () => FerLogin(inputNom?.value, inputPass?.value); }
         if (btnTancar != null) { btnTancar.clicked -= () => Application.Quit(); btnTancar.clicked += () => Application.Quit(); }
+        
+        if (btnStartGame != null)
+        {
+            btnStartGame.clicked -= AlClicarStart;
+            btnStartGame.clicked += AlClicarStart;
+            Debug.Log("[MenuManager] Botó Start vinculat.");
+        }
+
+        if (btnExitGame != null)
+        {
+            btnExitGame.clicked -= AlClicarSortir;
+            btnExitGame.clicked += AlClicarSortir;
+            Debug.Log("[MenuManager] Botó Exit vinculat.");
+        }
         
         if (btnTancarLobby != null)
         {
@@ -898,6 +930,18 @@ public class MenuManager : MonoBehaviour
             btnTancarSalaEspera.clicked -= TancarSalaEsperaAction;
             btnTancarSalaEspera.clicked += TancarSalaEsperaAction;
         }
+    }
+
+    private void AlClicarStart()
+    {
+        if (pantallaTitol != null) pantallaTitol.style.display = DisplayStyle.None;
+        if (pantallaLogin != null) pantallaLogin.style.display = DisplayStyle.Flex;
+    }
+
+    private void AlClicarSortir()
+    {
+        UnityEngine.Debug.Log("Sortint del joc...");
+        UnityEngine.Application.Quit();
     }
 
     // Wrappers per a les accions per poder desvincular-les correctament si cal, o simplement usar anònimes si es desitja
@@ -1214,8 +1258,13 @@ public class MenuManager : MonoBehaviour
                     userId = response.username; // Guardem el username per utilitzar-lo en els missatges
                     WebSocketClient.LocalUsername = userId; // Sincronitzem amb el WebSocketClient
                     currentSkin = response.skinEquipada;
+                    
+                    // 1.1 i 1.2: Persistència de la skin equipada
+                    PlayerPrefs.SetString("skinEquipada", response.skinEquipada);
+                    PlayerPrefs.Save();
+                    
                     if (labelSkinActual != null) labelSkinActual.text = "EQUIPADA: " + currentSkin;
-                    Debug.Log("User username guardat: " + userId);
+                    Debug.Log("User username guardat: " + userId + " amb skin: " + response.skinEquipada);
                 }
 
                 // 1.2, 1.3 i 1.4: Forçar canvi de UI i loguejar
