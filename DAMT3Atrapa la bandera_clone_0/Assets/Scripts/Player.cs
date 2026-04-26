@@ -68,20 +68,44 @@ public class Player : MonoBehaviour
         }
 
         // Configuració del Nametag si existeixen dades de sessió
-        if (elMeuNametag != null && !string.IsNullOrEmpty(WebSocketClient.Username))
+        string nomUsuariActual = string.IsNullOrEmpty(WebSocketClient.Username) ? WebSocketClient.LocalUsername : WebSocketClient.Username;
+        
+        if (elMeuNametag == null) elMeuNametag = GetComponentInChildren<Nametag>();
+        
+        if (elMeuNametag != null && !string.IsNullOrEmpty(nomUsuariActual))
         {
-            elMeuNametag.Configurar(WebSocketClient.Username, WebSocketClient.ColorName);
-            
-            // També aprofitem per configurar l'idJugador si és necessari
+            elMeuNametag.Configurar(nomUsuariActual, WebSocketClient.ColorName);
+            Debug.Log($"[Nametag] Configurat per a {nomUsuariActual}");
+        }
+
+        // --- CARREGAR SKIN LOCAL ---
+        string skinAUsar = MenuManager.Instance != null ? MenuManager.Instance.currentSkin : PlayerPrefs.GetString("skinEquipada", "Woodcutter");
+        if (anim != null)
+        {
+            // Intentar carregar des de la nova carpeta Resources/Skins
+            RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>($"Skins/{skinAUsar}");
+            if (controller != null)
+            {
+                anim.runtimeAnimatorController = controller;
+                Debug.Log($"[Skin] Animator de {skinAUsar} carregat correctament des de Resources/Skins.");
+            }
+            else
+            {
+                Debug.LogWarning($"[Skin] No s'ha trobat l'animador per a {skinAUsar} a Resources/Skins. Es manté el defecte.");
+            }
+        }
+        
+        // Configuració d'equip i id
+        if (!string.IsNullOrEmpty(WebSocketClient.Team))
+        {
             if (WebSocketClient.Team.ToLower() == "rojo" || WebSocketClient.Team.ToLower() == "vermell") idJugador = 1;
             else if (WebSocketClient.Team.ToLower() == "azul" || WebSocketClient.Team.ToLower() == "blau") idJugador = 2;
+            equip = (idJugador == 1) ? "A" : "B";
         }
         else
         {
-            // PROVES LOCALS: Si no venim del menú, assignem un equip per defecte
             if (string.IsNullOrEmpty(equip)) equip = "A";
             idJugador = 1;
-            Debug.Log("[Player] Modo PROVA LOCAL: Equip 'A' assignat automàticament.");
         }
     }
 
@@ -409,10 +433,14 @@ public class Player : MonoBehaviour
         while (elapsed < temps)
         {
             visible = !visible;
-            if (sr != null) sr.color = visible ? Color.red : new Color(1, 0, 0, 0.2f);
+            if (sr != null) 
+            {
+                // Vermell intens i pampallugues per indicar Stun
+                sr.color = visible ? new Color(1f, 0.2f, 0.2f, 1f) : new Color(1f, 0f, 0f, 0.3f);
+            }
             
-            yield return new WaitForSeconds(0.1f);
-            elapsed += 0.1f;
+            yield return new WaitForSeconds(0.15f);
+            elapsed += 0.15f;
         }
 
         if (sr != null) sr.color = originalColor;
@@ -427,7 +455,7 @@ public class Player : MonoBehaviour
         potMoure = true;
         potCombatre = true;
 
-        Debug.Log("[Player] Estat fantasma i bloqueig finalitzat.");
+        Debug.Log("[Player] Estat de STUN finalitzat. Jugador recuperat.");
     }
 
     public void TornarABase()
@@ -467,13 +495,27 @@ public class Player : MonoBehaviour
 
     public void AplicarEmpenta(Vector2 rivalPos)
     {
-        if (rb == null || rb.bodyType == RigidbodyType2D.Static) return;
+        if (rb == null) return;
+
+        if (rb.bodyType == RigidbodyType2D.Static) 
+        {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            StartCoroutine(TornarAStaticDespresDEmpenta());
+        }
 
         Vector2 dir = ((Vector2)transform.position - rivalPos).normalized;
         if (dir == Vector2.zero) dir = Random.insideUnitCircle.normalized;
         
-        rb.AddForce(dir * 15f, ForceMode2D.Impulse);
-        Debug.Log($"[Player] Aplicant empenta (knockback) en direcció {dir}");
+        // Augmentem la força de l'empenta a 25f per a més "juice" visual
+        rb.linearVelocity = Vector2.zero; // Netejar velocitat actual
+        rb.AddForce(dir * 25f, ForceMode2D.Impulse);
+        Debug.Log($"[Combat] Aplicant Knockback: {dir * 25f}");
+    }
+
+    private System.Collections.IEnumerator TornarAStaticDespresDEmpenta()
+    {
+        yield return new WaitForSeconds(0.3f);
+        if (isFrozen && rb != null) rb.bodyType = RigidbodyType2D.Static;
     }
 
     public void DeixarBandera(Vector3? dropOffset = null)

@@ -132,8 +132,9 @@ public class MenuManager : MonoBehaviour
         {
             if (websocket != null && websocket.State == WebSocketState.Open) return;
 
-            Debug.Log("[WebSocket] Intentant connectar a ws://204.168.215.211/api/ ...");
-            websocket = new WebSocket("ws://204.168.215.211/api/");
+            string wsUrl = baseUrl.Replace("http", "ws") + "/games/";
+            Debug.Log($"[WebSocket] Intentant connectar a {wsUrl} ...");
+            websocket = new WebSocket(wsUrl);
 
             websocket.OnOpen += () =>
             {
@@ -184,6 +185,7 @@ public class MenuManager : MonoBehaviour
             WebSocketClient.LocalUsername = userId;
 
         // 1.4: Assegurar que el root del UIDocument és visible
+        if (this == null) return;
         var uiDoc = GetComponent<UIDocument>();
         if (uiDoc != null && uiDoc.rootVisualElement != null)
         {
@@ -1172,7 +1174,7 @@ public class MenuManager : MonoBehaviour
                         {
                             if (dataCreacio.ToUniversalTime() < deuMinutsEnrere)
                             {
-                                Debug.Log($"[API] Ignorant sala obsoleta: {sala.roomId} (Creada: {dataCreacio})");
+                                // Ignorar silenciosament sales de fa més de 10 minuts
                                 continue;
                             }
                         }
