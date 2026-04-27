@@ -25,7 +25,7 @@ public class DroneNetworkSync : MonoBehaviour
     // Para clientes remotos (Interpolación)
     private Vector3 targetPosition;
     private bool isRemote = true; 
-    public float interpolationSpeed = 15f; 
+    public float interpolationSpeed = 40f; 
 
     void Start()
     {
@@ -65,10 +65,10 @@ public class DroneNetworkSync : MonoBehaviour
     {
         if (MenuManager.Instance != null && MenuManager.Instance.currentRoomData != null)
         {
-            string myId = MenuManager.Instance.userId.ToLower();
-            string hostId = MenuManager.Instance.currentRoomData.host.ToLower();
+            string myId = MenuManager.Instance.userId?.ToLower() ?? "";
+            string hostId = MenuManager.Instance.currentRoomData.host?.ToLower() ?? "";
             
-            isHost = (myId == hostId);
+            isHost = (myId == hostId) && !string.IsNullOrEmpty(hostId);
             isRemote = !isHost;
             
             Debug.Log($"[DRON-NET] Dron {droneAI.teamId} | Yo: {myId} | Host: {hostId} | Soc Host: {isHost}");
@@ -85,30 +85,38 @@ public class DroneNetworkSync : MonoBehaviour
 
         if (isRemote)
         {
-            // Modo Títere Sincronizado (Task 2.1, 2.2)
-            // NO destruimos componentes IA, pero anulamos su impacto físico
-            if (droneAI != null) droneAI.enabled = true;
-            
+            // Task 1.2, 1.3: Neutralización de IA en Clientes
+            // Destruimos componentes que solicitan decisiones para asegurar espejo exacto sin interferencias
             var dr = GetComponent<Unity.MLAgents.DecisionRequester>();
-            if (dr != null) dr.enabled = true;
+            if (dr != null) Destroy(dr);
 
             var bp = GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
-            if (bp != null) bp.enabled = true;
+            if (bp != null) Destroy(bp);
+
+            // NO DESTRUIMOS droneAI porque lo necesitamos para guardar estado (portantDino, teamId)
+            if (droneAI != null) 
+            {
+                droneAI.enabled = false;
+                // Destroy(droneAI); // ¡ERROR! Si lo destruyes, el código de abajo (ReceiveUpdate, Update) que lee de droneAI fallará y el dino no se moverá.
+            }
             
             Rigidbody2D rb = GetComponent<Rigidbody2D>();
             if (rb != null)
             {
-                rb.bodyType = RigidbodyType2D.Kinematic; // Task 2.2
+                rb.bodyType = RigidbodyType2D.Kinematic; // Task 1.4: Kinematic en clientes
                 rb.linearVelocity = Vector2.zero;
                 rb.angularVelocity = 0f;
             }
             
-            Debug.Log($"[DRON-NET] Dron {tid} en mode TÍTERE (IA Activa, Física Kinematic).");
+            Debug.Log($"[DRON-NET] Dron {tid} configurat com a ESPEJO (IA apagada, Físiques OFF).");
         }
         else
         {
             // Modo Cerebro (Host)
             if (droneAI != null) droneAI.enabled = true;
+            var dr = GetComponent<Unity.MLAgents.DecisionRequester>();
+            if (dr != null) dr.enabled = true;
+            
             Rigidbody2D rb = GetComponent<Rigidbody2D>();
             if (rb != null) rb.bodyType = RigidbodyType2D.Dynamic;
         }
@@ -119,7 +127,9 @@ public class DroneNetworkSync : MonoBehaviour
         // Re-verificar host periódicamente por si el cambio de sala es lento
         if (Time.frameCount % 120 == 0 && MenuManager.Instance != null && MenuManager.Instance.currentRoomData != null)
         {
-            bool actuallyHost = (MenuManager.Instance.userId.ToLower() == MenuManager.Instance.currentRoomData.host.ToLower());
+            string myId = MenuManager.Instance.userId?.ToLower() ?? "";
+            string hostId = MenuManager.Instance.currentRoomData.host?.ToLower() ?? "";
+            bool actuallyHost = (myId == hostId) && !string.IsNullOrEmpty(hostId);
             if (actuallyHost != isHost) CheckHostStatus();
         }
 
@@ -133,8 +143,17 @@ public class DroneNetworkSync : MonoBehaviour
         }
         else
         {
-            // Interpolación suave hacia la posición recibida
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * interpolationSpeed);
+            // Task 2.2: Snap de seguretat si la distància és massa gran
+            float dist = Vector3.Distance(transform.position, targetPosition);
+            if (dist > 0.5f)
+            {
+                transform.position = targetPosition;
+            }
+            else
+            {
+                // Task 2.1: Interpolació suau però molt ràpida (40f) cap a la posició rebuda
+                transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * interpolationSpeed);
+            }
             
             // Sincronización visual del dinosaurio capturado en clientes
             if (droneAI != null && dinosaurioTransform != null)
@@ -150,6 +169,8 @@ public class DroneNetworkSync : MonoBehaviour
                 else if (!droneAI.portantDino && dinosaurioTransform.parent == transform)
                 {
                     dinosaurioTransform.SetParent(null);
+                    Rigidbody2D rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
+                    if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Dynamic;
                 }
             }
         }

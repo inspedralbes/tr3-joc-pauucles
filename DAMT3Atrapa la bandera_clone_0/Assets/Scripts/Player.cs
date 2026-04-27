@@ -495,6 +495,9 @@ public class Player : MonoBehaviour
                 {
                     banderaAgafada.position += dropOffset.Value;
                 }
+                
+                Rigidbody2D flagRb = banderaAgafada.GetComponent<Rigidbody2D>();
+                if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Dynamic;
             }
             banderaAgafada = null;
         }
