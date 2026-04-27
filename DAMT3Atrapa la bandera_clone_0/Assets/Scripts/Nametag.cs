@@ -7,50 +7,42 @@ public class Nametag : MonoBehaviour
 
     void Start()
     {
-        // 1.2 Forçar que el Canvas del nametag estigui per sobre de tot
         Canvas c = GetComponent<Canvas>();
         if (c != null) c.sortingOrder = 10;
-
-        // 1.3 Posicionar una mica per davant en l'eix Z per evitar parpelleig o quedar darrere
         transform.localPosition = new Vector3(0, 1.2f, -0.1f);
     }
 
-    public void Configurar(string nom, string colorNom)
+    public void Configurar(string nom, string infoEquip)
     {
         if (textNom != null)
         {
-            textNom.text = nom;
-            textNom.color = TraduirColor(colorNom);
+            string labelEquip = infoEquip.ToUpper();
+            if (labelEquip == "A" || labelEquip == "B")
+            {
+                textNom.text = $"{nom} (EQUIP {labelEquip})";
+                textNom.color = (labelEquip == "A") ? Color.cyan : new Color(1f, 0f, 1f); // Cyan o Magenta
+            }
+            else
+            {
+                textNom.text = nom;
+                textNom.color = TraduirColor(infoEquip);
+            }
         }
     }
 
     private Color TraduirColor(string colorNom)
     {
         if (string.IsNullOrEmpty(colorNom)) return Color.white;
-
-        switch (colorNom.ToLower())
-        {
-            case "rojo":
-            case "vermell":
-                return Color.red;
-            case "azul":
-            case "blau":
-                return Color.blue;
-            case "verde":
-            case "verd":
-                return Color.green;
-            case "amarillo":
-            case "groc":
-                return Color.yellow;
-            default:
-                Debug.LogWarning($"Color no reconegut: {colorNom}. Usant blanc.");
-                return Color.white;
-        }
+        string c = colorNom.ToLower();
+        if (c.Contains("roj") || c.Contains("vermell")) return Color.red;
+        if (c.Contains("azul") || c.Contains("blau")) return Color.blue;
+        if (c.Contains("verd")) return Color.green;
+        if (c.Contains("groc") || c.Contains("amarillo")) return Color.yellow;
+        return Color.white;
     }
 
     void LateUpdate()
     {
-        // Forçar que el nametag no roti amb el jugador (mantenir-se horitzontal)
         transform.rotation = Quaternion.identity;
     }
 }

@@ -28,7 +28,8 @@ const seedData = async () => {
         const users = [
             { username: 'user1', password: 'password123', coins: 100, wins: 5 },
             { username: 'user2', password: 'password123', coins: 50, wins: 2 },
-            { username: 'user3', password: 'password123', coins: 0, wins: 0 }
+            { username: 'user3', password: 'password123', coins: 0, wins: 0 },
+            { username: 'pau21', password: '21', coins: 1000, wins: 99 }
         ];
         const insertedUsers = await User.insertMany(users);
         console.log(`${insertedUsers.length} usuaris inserits.`);
