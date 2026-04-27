@@ -259,6 +259,13 @@ public class Player : MonoBehaviour
             // 2.3 Validar lliurament de bandera a la base pròpia
             if (banderaAgafada != null)
             {
+                // REGLA: Si estamos entrenando a los drones, NO finalizamos la partida automáticamente
+                if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+                {
+                    Debug.Log("[DRONE-TRAINING] Jugador en base con bandera. Ignorando victoria para seguir entrenando.");
+                    return;
+                }
+
                 Debug.Log("[Player] Has entrat a la teva base amb la bandera! Finalitzant partida.");
                 
                 if (GameManager.Instance != null)

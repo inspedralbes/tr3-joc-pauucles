@@ -1,0 +1,32 @@
+{
+    "spawn_distance": {
+        "lesson_num": 0
+    },
+    "DronAI": {
+        "checkpoints": [
+            {
+                "steps": 200015,
+                "file_path": "results/IA_Dron_V2/DronAI/DronAI-200015.onnx",
+                "reward": null,
+                "creation_time": 1777320017.966263,
+                "auxillary_file_paths": [
+                    "results/IA_Dron_V2/DronAI/DronAI-200015.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 200015,
+            "file_path": "results/IA_Dron_V2/DronAI.onnx",
+            "reward": null,
+            "creation_time": 1777320017.966263,
+            "auxillary_file_paths": [
+                "results/IA_Dron_V2/DronAI/DronAI-200015.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.1.0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

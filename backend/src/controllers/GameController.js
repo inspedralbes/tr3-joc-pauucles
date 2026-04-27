@@ -62,13 +62,12 @@ class GameController {
             });
 
             if (this.wss && this.wss.clients) {
-                console.log('Enviant broadcast a ' + this.wss.clients.size + ' clients');
                 this.wss.clients.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN) {
+                    if (client.readyState === WebSocket.OPEN && client.roomId === roomId) {
                         client.send(message);
                     }
                 });
-                console.log(`[WS] Broadcast ROOM_UPDATED enviat per a la sala ${roomId} (${this.wss.clients.size} clients conectats)`);
+                console.log(`[WS] Broadcast ROOM_UPDATED enviat a la sala ${roomId}`);
             } else {
                 console.log('No s\'ha pogut fer el broadcast: wss o wss.clients no estan disponibles');
             }
@@ -95,12 +94,12 @@ class GameController {
                     });
 
                     this.wss.clients.forEach((client) => {
-                        if (client.readyState === WebSocket.OPEN) {
+                        if (client.readyState === WebSocket.OPEN && client.roomId === gameData.roomId) {
                             client.send(message);
                         }
                     });
                 });
-                console.log(`Broadcast PARTIDA_INICIADA enviat per a la sala ${gameData.roomId}`);
+                console.log(`Broadcast PARTIDA_INICIADA enviat a la sala ${gameData.roomId}`);
             }
         } catch (error) {
             console.error("Error en el broadcast d'inici de partida:", error);

@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     public GameObject banderaVermella;
     public GameObject banderaGroga;
     public GameObject banderaVerda;
+    public GameObject dronePrefab;
 
     [System.Serializable]
     public struct SkinMapping
@@ -35,6 +36,7 @@ public class GameManager : MonoBehaviour
 
     public Player localPlayer;
     public Dictionary<string, RemotePlayer> remotePlayers = new Dictionary<string, RemotePlayer>();
+    public List<DroneAI> dronsEscena = new List<DroneAI>(); // Nueva lista rápida
     private bool banderesInstanciades = false;
 
     void Awake()
@@ -98,6 +100,16 @@ public class GameManager : MonoBehaviour
     {
         // Esperem un temps fix per donar temps a la xarxa a sincronitzar-se
         yield return new UnityEngine.WaitForSeconds(0.5f);
+
+        // FORÇAR DESPERTAR DRONS
+        DroneAI[] drons = Resources.FindObjectsOfTypeAll<DroneAI>();
+        Debug.Log($"[GameManager] Drons trobats a l'escena (inclosos desactivats): {drons.Length}");
+        foreach (var d in drons)
+        {
+            d.gameObject.SetActive(true);
+            d.enabled = true;
+            Debug.Log($"[GameManager] Dron {d.teamId} DESPERTAT i ACTIVAT.");
+        }
 
         if (!banderesInstanciades)
         {
@@ -296,6 +308,30 @@ public class GameManager : MonoBehaviour
                     Debug.Log($"[GameManager] Nametag (Legacy) actualitzat: {MenuManager.Instance.userId}");
                 }
             }
+        }
+    }
+
+    public void InstanciarDron(string teamId)
+    {
+        if (dronePrefab == null)
+        {
+            Debug.LogError("[GameManager] No s'ha assignat el dronePrefab.");
+            return;
+        }
+
+        // Evitem duplicats
+        foreach (var d in dronsEscena)
+        {
+            if (d != null && d.teamId == teamId) return;
+        }
+
+        Debug.Log($"[GameManager] Instanciant dron per a l'equip {teamId} (Spawn Forçat)...");
+        GameObject go = Instantiate(dronePrefab, Vector3.zero, Quaternion.identity);
+        DroneAI ai = go.GetComponent<DroneAI>();
+        if (ai != null)
+        {
+            ai.teamId = teamId;
+            if (!dronsEscena.Contains(ai)) dronsEscena.Add(ai);
         }
     }
 

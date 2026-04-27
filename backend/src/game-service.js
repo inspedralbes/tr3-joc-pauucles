@@ -30,9 +30,13 @@ wss.on("connection", (ws, req) => {
     ws.on("message", async (data) => {
         try {
             const msg = JSON.parse(data);
-            console.log("Missatge rebut:", msg);
+            
+            // Guardar roomId y username en el socket para filtrado eficiente
+            if (msg.roomId) ws.roomId = msg.roomId;
+            if (msg.username) ws.username = msg.username;
 
             if (msg.type === "READY") {
+                console.log(`[WS] Jugador ${msg.username} preparat a la sala ${msg.roomId}`);
                 const updatedGame = await gameService.setReady(msg.roomId, msg.username);
                 if (updatedGame) {
                     await gameController.broadcastToRoom(updatedGame);
@@ -51,11 +55,16 @@ wss.on("connection", (ws, req) => {
                 await gameController.broadcastRoomUpdates();
             }
 
-            if (msg.type === "PLAYER_MOVE" || msg.type === "GAME_OVER" ||
+            // Optimización: Solo enviar movimientos y eventos de juego a los miembros de la misma sala
+            if (msg.type === "PLAYER_MOVE" || msg.type === "DRONE_MOVE" || msg.type === "GAME_OVER" ||
                 msg.type === "MINIJOC_START" || msg.type === "MINIJOC_UPDATE" || msg.type === "MINIJOC_RESULT") {
+                
                 const message = JSON.stringify(msg);
                 wss.clients.forEach((client) => {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                    // Filtrar: mismo roomId, no es el emisor, y conexión abierta
+                    if (client !== ws && 
+                        client.readyState === WebSocket.OPEN && 
+                        client.roomId === msg.roomId) {
                         client.send(message);
                     }
                 });

@@ -83,17 +83,19 @@ public class RemotePlayer : MonoBehaviour
             }
 
             // Si no la portem o es la equivocada, la busquem i la capturem
-            GameObject[] banderes = GameObject.FindGameObjectsWithTag("Bandera");
-            foreach (var bObj in banderes)
+            Bandera[] banderes = GameObject.FindObjectsByType<Bandera>(FindObjectsSortMode.None);
+            foreach (Bandera b in banderes)
             {
-                Bandera b = bObj.GetComponent<Bandera>();
                 if (b != null && b.equipPropietari == equipBandera)
                 {
                     // Forçar captura en aquest client pel personatge remot
                     b.transform.SetParent(this.transform);
                     localP.banderaAgafada = b.transform;
-                    if (bObj.GetComponent<Rigidbody2D>() != null) 
-                        bObj.GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+                    
+                    Rigidbody2D flagRb = b.GetComponent<Rigidbody2D>();
+                    if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Kinematic;
+                    
+                    Debug.Log($"[RemotePlayer] Sincronitzada bandera {equipBandera} per al jugador {username}");
                     break;
                 }
             }

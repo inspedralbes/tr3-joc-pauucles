@@ -132,8 +132,8 @@ public class MenuManager : MonoBehaviour
         {
             if (websocket != null && websocket.State == WebSocketState.Open) return;
 
-            Debug.Log("[WebSocket] Intentant connectar a ws://204.168.215.211/api/ ...");
-            websocket = new WebSocket("ws://204.168.215.211/api/");
+            Debug.Log("[WebSocket] Intentant connectar a ws://204.168.215.211/api/games/ ...");
+            websocket = new WebSocket("ws://204.168.215.211/api/games/");
 
             websocket.OnOpen += () =>
             {
@@ -306,6 +306,29 @@ public class MenuManager : MonoBehaviour
                         if (GameManager.Instance != null)
                         {
                             GameManager.Instance.UpdateRemotePlayer(moveMsg);
+                        }
+                    });
+                }
+                return;
+            }
+
+            // Intentem processar DRONE_MOVE
+            if (dadesJSON.Contains("\"type\":\"DRONE_MOVE\""))
+            {
+                DroneNetworkSync.DroneMoveMessage droneMsg = JsonUtility.FromJson<DroneNetworkSync.DroneMoveMessage>(dadesJSON);
+                if (droneMsg != null)
+                {
+                    EnqueueMainThread(() => {
+                        // Buscar el dron de l'equip corresponent
+                        DroneAI[] drones = GameObject.FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
+                        foreach (DroneAI d in drones)
+                        {
+                            if (d.teamId == droneMsg.teamId)
+                            {
+                                DroneNetworkSync sync = d.GetComponent<DroneNetworkSync>();
+                                if (sync != null) sync.ReceiveUpdate(droneMsg);
+                                break;
+                            }
                         }
                     });
                 }
@@ -523,33 +546,83 @@ public class MenuManager : MonoBehaviour
             if (dadesJSON.Contains("\"type\":\"PARTIDA_INICIADA\""))
             {
                 PartidaIniciadaMsg msg = JsonUtility.FromJson<PartidaIniciadaMsg>(dadesJSON);
-                if (msg != null)
+                if (msg != null && msg.username == userId)
                 {
-                    // Si el missatge és per a nosaltres, guardem les dades i canviem d'escena
-                    if (msg.username == userId)
-                    {
-                        WebSocketClient.Username = msg.username;
-                        WebSocketClient.LocalUsername = msg.username;
-                        WebSocketClient.Team = msg.team;
-                        WebSocketClient.ColorName = msg.color;
-                        WebSocketClient.RoomId = msg.roomId;
-                        currentRoomId = msg.roomId;
-                        Debug.Log($"Dades de partida guardades per a {msg.username}: Equip={msg.team}, Color={msg.color}, RoomId={msg.roomId}");
+                    WebSocketClient.Username = msg.username;
+                    WebSocketClient.LocalUsername = msg.username;
+                    WebSocketClient.Team = msg.team;
+                    WebSocketClient.ColorName = msg.color;
+                    WebSocketClient.RoomId = msg.roomId;
+                    currentRoomId = msg.roomId;
+                    Debug.Log($"Dades de partida guardades per a {msg.username}: Equip={msg.team}, Color={msg.color}, RoomId={msg.roomId}");
 
-                        EnqueueMainThread(() =>
+                    EnqueueMainThread(() =>
+                    {
+                        UIDocument ui = GetComponent<UIDocument>();
+                        if (ui != null && ui.rootVisualElement != null)
                         {
-                            UIDocument ui = GetComponent<UIDocument>();
-                            if (ui != null && ui.rootVisualElement != null)
-                            {
-                                ui.rootVisualElement.style.display = DisplayStyle.None;
-                            }
-                            Debug.Log("UI amagada i carregant escena Bosque...");
-                            SceneManager.LoadScene("Bosque");
-                        });
+                            ui.rootVisualElement.style.display = DisplayStyle.None;
+                        }
+                        Debug.Log("UI amagada i carregant escena Bosque...");
+                        SceneManager.LoadScene("Bosque");
+                    });
+                }
+            }
+
+            // --- SINCRONITZACIÓ DE DRONS (Optimitzat) ---
+            if (dadesJSON.Contains("\"type\":\"DRONE_MOVE\"") && GameManager.Instance != null)
+            {
+                DroneNetworkSync.DroneMoveMessage droneMsg = JsonUtility.FromJson<DroneNetworkSync.DroneMoveMessage>(dadesJSON);
+                bool trobat = false;
+
+                if (Time.frameCount % 300 == 0)
+                    Debug.Log($"[CLIENT-DRONE-RECV] Rebut DRONE_MOVE per equip {droneMsg.teamId} a ({droneMsg.x:F1}, {droneMsg.y:F1})");
+
+                foreach (var ai in GameManager.Instance.dronsEscena)
+                {
+                    if (ai != null && ai.teamId == droneMsg.teamId)
+                    {
+                        DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
+                        if (sync != null) sync.ReceiveUpdate(droneMsg);
+                        trobat = true;
+                        break;
                     }
                 }
-                return;
+
+                if (!trobat)
+                {
+                    // Recerca d'emergència si la llista està buida o falta el dron
+                    DroneAI[] tots = FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
+                    foreach (var ai in tots)
+                    {
+                        if (ai.teamId == droneMsg.teamId)
+                        {
+                            if (!GameManager.Instance.dronsEscena.Contains(ai))
+                                GameManager.Instance.dronsEscena.Add(ai);
+                            
+                            DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
+                            if (sync != null) sync.ReceiveUpdate(droneMsg);
+                            trobat = true;
+                            Debug.LogWarning($"[DRONE-FIX] Dron {droneMsg.teamId} trobat mitjançant recerca d'emergència.");
+                            break;
+                        }
+                    }
+
+                    // Si encara no s'ha trobat, el creem (Spawn Forçat)
+                    if (!trobat)
+                    {
+                        Debug.LogWarning($"[DRONE-NET] Dron equip {droneMsg.teamId} no trobat. Forçant instanciació...");
+                        GameManager.Instance.InstanciarDron(droneMsg.teamId);
+                    }
+                }
+
+                if (!trobat && Time.frameCount % 300 == 0)
+                {
+                    Debug.LogError($"[CLIENT-DRONE-ERROR] Dron per equip {droneMsg.teamId} NO trobat a l'escena!");
+                }
             }
+
+            return;
         }
         catch (Exception e)
         {
@@ -1143,6 +1216,14 @@ public class MenuManager : MonoBehaviour
         string json = JsonUtility.ToJson(data);
         Debug.LogWarning($"[MenuManager] Intentant enviar al servidor (Login): {json}");
         StartCoroutine(EnviarPeticio("/users/login", json));
+    }
+
+    public void EnviarMovimientoDron(string jsonPayload)
+    {
+        if (websocket != null && websocket.State == WebSocketState.Open)
+        {
+            websocket.SendText(jsonPayload);
+        }
     }
 
     private IEnumerator ObtenirPartides()
