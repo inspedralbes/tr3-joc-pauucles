@@ -340,20 +340,32 @@ public class GameManager : MonoBehaviour
             Debug.LogError("[GameManager] No s'ha assignat el dronePrefab.");
             return;
         }
-
-        // Evitem duplicats
+    
+        // Evitem duplicats i activem si cal
         foreach (var d in dronsEscena)
         {
-            if (d != null && d.teamId == teamId) return;
+            if (d != null && d.teamId == teamId)
+            {
+                if (!d.gameObject.activeSelf) d.gameObject.SetActive(true);
+                return;
+            }
         }
-
+    
         Debug.Log($"[GameManager] Instanciant dron per a l'equip {teamId} (Spawn Forçat)...");
         GameObject go = Instantiate(dronePrefab, Vector3.zero, Quaternion.identity);
+        
+        // Forçar nom per a cerca i identificació
+        go.name = (teamId == "A") ? "DRONE_A" : "DRONE_B";
+        
         DroneAI ai = go.GetComponent<DroneAI>();
         if (ai != null)
         {
             ai.teamId = teamId;
             if (!dronsEscena.Contains(ai)) dronsEscena.Add(ai);
+            
+            // Forçar activació immediata
+            ai.enabled = true;
+            go.SetActive(true);
         }
     }
 

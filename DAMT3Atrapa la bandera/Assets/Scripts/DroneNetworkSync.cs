@@ -122,15 +122,30 @@ public class DroneNetworkSync : MonoBehaviour
         }
     }
 
+    private bool statusConfirmed = false;
+    private bool firstUpdateReceived = false;
+
     void Update()
     {
         // Task 7.5: Verificació dinàmica per evitar errors d'inicialització
+        if (!statusConfirmed && MenuManager.Instance != null && MenuManager.Instance.currentRoomData != null)
+        {
+            CheckHostStatus();
+            statusConfirmed = true;
+        }
+
         bool socHost = (MenuManager.Instance != null && MenuManager.Instance.IsHost());
+
+        // CERCA DEL DINOSAURIO (Tant per Host com per Client si no el tenim)
+        if (dinosaurioTransform == null && Time.frameCount % 60 == 0) 
+        {
+            BuscarDinosaurio();
+        }
 
         if (socHost)
         {
-            // Task 4.1: Si no tenim el dino, el busquem (per si s'ha instanciat tard)
-            if (dinosaurioTransform == null) BuscarDinosaurio();
+            // Assegurar que si som host, la IA està activa
+            if (droneAI != null && !droneAI.enabled) droneAI.enabled = true;
 
             if (Time.time - lastSendTime >= sendInterval)
             {
@@ -140,11 +155,15 @@ public class DroneNetworkSync : MonoBehaviour
         }
         else
         {
-            // Task 2.2: Snap de seguretat si la distància és massa gran
+            // Lògica de Client (Espejo)
+            if (droneAI != null && droneAI.enabled) droneAI.enabled = false;
+
+            // Task 2.2: Snap de seguretat si la distància és massa gran o és el primer cop
             float dist = Vector3.Distance(transform.position, targetPosition);
-            if (dist > 0.5f)
+            if (dist > 5f || !firstUpdateReceived)
             {
                 transform.position = targetPosition;
+                if (dist > 0.1f) firstUpdateReceived = true;
             }
             else
             {
@@ -152,22 +171,37 @@ public class DroneNetworkSync : MonoBehaviour
                 transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * interpolationSpeed);
             }
             
-            // Sincronización visual del dinosaurio capturado en clientes
+            // Sincronització visual del dinosaurio capturat en clients
             if (droneAI != null && dinosaurioTransform != null)
             {
-                if (droneAI.portantDino && dinosaurioTransform.parent != transform)
+                if (droneAI.portantDino)
                 {
-                    dinosaurioTransform.SetParent(transform);
-                    dinosaurioTransform.localPosition = Vector3.zero;
-                    
-                    Rigidbody2D rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
-                    if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Kinematic;
+                    if (dinosaurioTransform.parent != transform)
+                    {
+                        Debug.Log($"[DRON-SYNC] Client acoblant dino a dron {droneAI.teamId}");
+                        dinosaurioTransform.SetParent(transform);
+                        dinosaurioTransform.localPosition = new Vector3(0, -0.5f, 0);
+                        
+                        Rigidbody2D rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
+                        if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Kinematic;
+
+                        var netSync = dinosaurioTransform.GetComponent<NetworkSync>();
+                        if (netSync != null) netSync.enabled = false;
+                    }
                 }
-                else if (!droneAI.portantDino && dinosaurioTransform.parent == transform)
+                else
                 {
-                    dinosaurioTransform.SetParent(null);
-                    Rigidbody2D rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
-                    if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Dynamic;
+                    if (dinosaurioTransform.parent == transform)
+                    {
+                        Debug.Log($"[DRON-SYNC] Client alliberant dino de dron {droneAI.teamId}");
+                        dinosaurioTransform.SetParent(null);
+                        
+                        Rigidbody2D rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
+                        if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Dynamic;
+
+                        var netSync = dinosaurioTransform.GetComponent<NetworkSync>();
+                        if (netSync != null) netSync.enabled = true;
+                    }
                 }
             }
         }

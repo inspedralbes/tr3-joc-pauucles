@@ -32,6 +32,13 @@ public class DroneAI : Agent
         // Task 5.1: Forçar noms i EQUIP per a sincronització de xarxa
         if (gameObject.name.Contains("A")) { gameObject.name = "DRONE_A"; teamId = "A"; }
         else if (gameObject.name.Contains("B")) { gameObject.name = "DRONE_B"; teamId = "B"; }
+        
+        // Si encara no tenim teamId, provem per nom d'objecte o pare
+        if (string.IsNullOrEmpty(teamId))
+        {
+            if (gameObject.name.EndsWith("A")) teamId = "A";
+            else if (gameObject.name.EndsWith("B")) teamId = "B";
+        }
 
         rb = GetComponent<Rigidbody2D>();
         decisionRequester = GetComponent<Unity.MLAgents.DecisionRequester>();
@@ -42,6 +49,12 @@ public class DroneAI : Agent
             rb.gravityScale = 0;
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+        }
+
+        // Registrar-se al GameManager si encara no hi som
+        if (GameManager.Instance != null && !GameManager.Instance.dronsEscena.Contains(this))
+        {
+            GameManager.Instance.dronsEscena.Add(this);
         }
 
         // Sincronització de xarxa específica per al dron

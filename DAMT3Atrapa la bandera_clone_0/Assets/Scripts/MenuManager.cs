@@ -342,37 +342,82 @@ public class MenuManager : MonoBehaviour
                 return;
             }
 
-            // Intentem processar DRONE_MOVE
-            if (dadesJSON.Contains("\"type\":\"DRONE_MOVE\""))
+            // --- SINCRONITZACIÓ DE DRONS (Optimitzat i Robusta) ---
+            if (dadesJSON.Contains("\"type\":\"DRONE_MOVE\"") && GameManager.Instance != null)
             {
                 DroneNetworkSync.DroneMoveMessage droneMsg = JsonUtility.FromJson<DroneNetworkSync.DroneMoveMessage>(dadesJSON);
                 if (droneMsg != null)
                 {
                     EnqueueMainThread(() => {
-                        // Task 7.3: Buscar per nom directe (molt més ràpid)
-                        string nomDron = (droneMsg.teamId == "A") ? "DRONE_A" : "DRONE_B";
-                        GameObject droneGO = GameObject.Find(nomDron);
-                        
-                        // Respatller: Si el nom no coincideix (ex: encara es diu "Dron A(Clone)"), busquem per script
-                        if (droneGO == null)
+                        bool trobat = false;
+
+                        // 1. Intentem buscar a la llista ràpida del GameManager
+                        foreach (var ai in GameManager.Instance.dronsEscena)
                         {
-                            DroneAI[] totsElsDrons = GameObject.FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
-                            foreach(var d in totsElsDrons) if(d.teamId == droneMsg.teamId) { droneGO = d.gameObject; break; }
+                            if (ai != null && ai.teamId == droneMsg.teamId)
+                            {
+                                DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
+                                if (sync != null) sync.ReceiveUpdate(droneMsg);
+                                trobat = true;
+                                break;
+                            }
                         }
 
-                        if (droneGO != null)
+                        // 2. Si no està a la llista, busquem per nom directe (DRONE_A / DRONE_B)
+                        if (!trobat)
                         {
-                            DroneNetworkSync sync = droneGO.GetComponent<DroneNetworkSync>();
-                            if (sync != null) sync.ReceiveUpdate(droneMsg);
+                            string nomDron = (droneMsg.teamId == "A") ? "DRONE_A" : "DRONE_B";
+                            GameObject droneGO = GameObject.Find(nomDron);
+                            if (droneGO != null)
+                            {
+                                DroneNetworkSync sync = droneGO.GetComponent<DroneNetworkSync>();
+                                if (sync != null)
+                                {
+                                    sync.ReceiveUpdate(droneMsg);
+                                    trobat = true;
+                                    
+                                    // Afegir-lo a la llista ràpida per a la propera vegada
+                                    DroneAI ai = droneGO.GetComponent<DroneAI>();
+                                    if (ai != null && !GameManager.Instance.dronsEscena.Contains(ai))
+                                        GameManager.Instance.dronsEscena.Add(ai);
+                                }
+                            }
                         }
-                        else
+
+                        // 3. Recerca d'emergència per script (per si el nom és incorrecte)
+                        if (!trobat)
                         {
-                            // Log de debug per saber per què no es mouen
-                            if (Time.frameCount % 500 == 0) Debug.LogWarning($"[NETWORK] No trobo el dron de l'equip {droneMsg.teamId} per aplicar moviment!");
+                            DroneAI[] tots = FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
+                            foreach (var ai in tots)
+                            {
+                                if (ai.teamId == droneMsg.teamId)
+                                {
+                                    if (!GameManager.Instance.dronsEscena.Contains(ai))
+                                        GameManager.Instance.dronsEscena.Add(ai);
+                                    
+                                    DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
+                                    if (sync != null) sync.ReceiveUpdate(droneMsg);
+                                    trobat = true;
+                                    Debug.LogWarning($"[DRONE-FIX] Dron {droneMsg.teamId} trobat mitjançant recerca d'emergència.");
+                                    break;
+                                }
+                            }
+                        }
+
+                        // 4. Si encara no s'ha trobat, el creem (Spawn Forçat)
+                        if (!trobat)
+                        {
+                            Debug.LogWarning($"[DRONE-NET] Dron equip {droneMsg.teamId} no trobat a l'escena. Forçant instanciació...");
+                            GameManager.Instance.InstanciarDron(droneMsg.teamId);
+                        }
+
+                        if (!trobat && Time.frameCount % 600 == 0)
+                        {
+                            Debug.LogError($"[CLIENT-DRONE-ERROR] Dron per equip {droneMsg.teamId} NO trobat ni s'ha pogut instanciar!");
                         }
                     });
                 }
-                return;
+                return; // Ja hem processat el missatge de dron
             }
 
             // Intentem processar com a llista de sales primer
@@ -552,58 +597,6 @@ public class MenuManager : MonoBehaviour
                 }
             }
 
-            // --- SINCRONITZACIÓ DE DRONS (Optimitzat) ---
-            if (dadesJSON.Contains("\"type\":\"DRONE_MOVE\"") && GameManager.Instance != null)
-            {
-                DroneNetworkSync.DroneMoveMessage droneMsg = JsonUtility.FromJson<DroneNetworkSync.DroneMoveMessage>(dadesJSON);
-                bool trobat = false;
-
-                if (Time.frameCount % 300 == 0)
-                    Debug.Log($"[CLIENT-DRONE-RECV] Rebut DRONE_MOVE per equip {droneMsg.teamId} a ({droneMsg.x:F1}, {droneMsg.y:F1})");
-
-                foreach (var ai in GameManager.Instance.dronsEscena)
-                {
-                    if (ai != null && ai.teamId == droneMsg.teamId)
-                    {
-                        DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
-                        if (sync != null) sync.ReceiveUpdate(droneMsg);
-                        trobat = true;
-                        break;
-                    }
-                }
-
-                if (!trobat)
-                {
-                    // Recerca d'emergència si la llista està buida o falta el dron
-                    DroneAI[] tots = FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
-                    foreach (var ai in tots)
-                    {
-                        if (ai.teamId == droneMsg.teamId)
-                        {
-                            if (!GameManager.Instance.dronsEscena.Contains(ai))
-                                GameManager.Instance.dronsEscena.Add(ai);
-                            
-                            DroneNetworkSync sync = ai.GetComponent<DroneNetworkSync>();
-                            if (sync != null) sync.ReceiveUpdate(droneMsg);
-                            trobat = true;
-                            Debug.LogWarning($"[DRONE-FIX] Dron {droneMsg.teamId} trobat mitjançant recerca d'emergència.");
-                            break;
-                        }
-                    }
-
-                    // Si encara no s'ha trobat, el creem (Spawn Forçat)
-                    if (!trobat)
-                    {
-                        Debug.LogWarning($"[DRONE-NET] Dron equip {droneMsg.teamId} no trobat. Forçant instanciació...");
-                        GameManager.Instance.InstanciarDron(droneMsg.teamId);
-                    }
-                }
-
-                if (!trobat && Time.frameCount % 300 == 0)
-                {
-                    Debug.LogError($"[CLIENT-DRONE-ERROR] Dron per equip {droneMsg.teamId} NO trobat a l'escena!");
-                }
-            }
 
             // --- SINCRONITZACIÓ DE MINI-DINOS (Plan B) ---
             if (dadesJSON.Contains("\"type\":\"MINIDINO_MOVE\""))
