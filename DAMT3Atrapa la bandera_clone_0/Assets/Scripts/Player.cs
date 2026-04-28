@@ -23,7 +23,7 @@ public class Player : MonoBehaviour
 
     private int lives = 3;
     private int maxLives = 3;
-    private bool isFrozen = false;
+    public bool isFrozen = false;
     public bool isStunned => isFrozen; // Task 1.1: Alias para legibilidad
     private bool isInvulnerable = false;
     private Rigidbody2D rb;
@@ -437,7 +437,8 @@ public class Player : MonoBehaviour
         }
         else
         {
-            DeixarBandera(new Vector3(2f, 0f, 0f));
+            // Task 7.15: Si perdem el combat, la bandera TORNA A LA SEVA BASE AUTOMÀTICAMENT
+            DeixarBandera(tornaraBase: true);
             AplicarEfecteVisualDerrota(durada);
         }
     }
@@ -561,21 +562,28 @@ public class Player : MonoBehaviour
         if (isFrozen && rb != null) rb.bodyType = RigidbodyType2D.Static;
     }
 
-    public void DeixarBandera(Vector3? dropOffset = null)
+    public void DeixarBandera(Vector3? dropOffset = null, bool tornaraBase = false)
     {
         if (banderaAgafada != null)
         {
             Bandera scriptB = banderaAgafada.GetComponent<Bandera>();
             if (scriptB != null)
             {
-                scriptB.DeixarDeSeguir();
-                if (dropOffset.HasValue)
+                if (tornaraBase)
                 {
-                    banderaAgafada.position += dropOffset.Value;
+                    scriptB.ResetABase();
                 }
-                
-                Rigidbody2D flagRb = banderaAgafada.GetComponent<Rigidbody2D>();
-                if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Dynamic;
+                else
+                {
+                    scriptB.DeixarDeSeguir();
+                    if (dropOffset.HasValue)
+                    {
+                        banderaAgafada.position += dropOffset.Value;
+                    }
+                    
+                    Rigidbody2D flagRb = banderaAgafada.GetComponent<Rigidbody2D>();
+                    if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Dynamic;
+                }
             }
             banderaAgafada = null;
         }

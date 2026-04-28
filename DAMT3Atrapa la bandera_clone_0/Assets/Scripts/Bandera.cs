@@ -122,11 +122,11 @@ public class Bandera : MonoBehaviour
         if (transform.parent != null)
         {
             Player holder = transform.parent.GetComponent<Player>();
-            if (holder != null && !holder.potCombatre)
+            if (holder != null && holder.isFrozen)
             {
                 DeixarDeSeguir();
                 holder.banderaAgafada = null;
-                return; // Task 7.7: Evitar NullReferenceException si acabem de deixar la bandera
+                return;
             }
             
             // Sincronitzar flipX
@@ -153,5 +153,18 @@ public class Bandera : MonoBehaviour
                 if (Vector3.Distance(transform.position, posicioInicial) < 0.1f) fugint = false;
             }
         }
+    }
+
+    public void ResetABase()
+    {
+        transform.SetParent(null);
+        transform.position = posicioInicial;
+        fugint = false;
+        if (rb != null) 
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.bodyType = RigidbodyType2D.Kinematic;
+        }
+        Debug.Log($"[BANDERA] {equipPropietari} ha tornat a la seva base.");
     }
 }

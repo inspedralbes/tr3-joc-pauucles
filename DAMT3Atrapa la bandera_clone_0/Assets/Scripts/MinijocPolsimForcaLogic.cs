@@ -34,7 +34,8 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
     private void OnBtnClicked()
     {
-        ActualitzarPuntuacions(1);
+        int elMeuID = (MinijocUIManager.Instance.jugador1.username == WebSocketClient.LocalUsername) ? 1 : 2;
+        ActualitzarPuntuacions(elMeuID);
     }
 
     public void IniciarMinijoc()
@@ -64,7 +65,8 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
             {
-                ActualitzarPuntuacions(1);
+                int elMeuID = (MinijocUIManager.Instance.jugador1.username == WebSocketClient.LocalUsername) ? 1 : 2;
+                ActualitzarPuntuacions(elMeuID);
             }
 
             ActualitzarUI();
@@ -127,11 +129,13 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
         if (puntuacioJ1 > 50) 
         {
+            // Guanya el que empenyia cap a 100 (sempre el Local si no hi ha canvis)
             _winner = MinijocUIManager.Instance.jugador1.username;
             _loser = MinijocUIManager.Instance.jugador2.username;
         }
         else if (puntuacioJ1 < 50) 
         {
+            // Guanya el que empenyia cap a 0 (sempre el Remot)
             _winner = MinijocUIManager.Instance.jugador2.username;
             _loser = MinijocUIManager.Instance.jugador1.username;
         }
