@@ -126,7 +126,11 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
 
         bool coincideixen = (_eleccioJ1 == _eleccioJ2);
 
-        // REGLA: Si l'adiví (defensor) encerta, guanya l'adiví. Si falla, guanya el que mirava (atacant).
+        // REGLA SOL·LICITADA:
+        // 1. Si l'adiví (defensor) ACIERTA (coinciden): El decisor (atacante) recibe el stun (pierde).
+        // 2. Si l'adiví (defensor) NO ACIERTA: El adivino (defensor) recibe el stun (pierde).
+        // Lógica: Si soy atacante y coinciden, guanyaJ1 = (true != true) = false (pierdo). Correcto.
+        // Si soy defensor y coinciden, guanyaJ1 = (false != true) = true (gano). Correcto.
         bool guanyaJ1 = (_sócAtacant != coincideixen);
 
         // Task 2.3: Identitats reals per a xarxa

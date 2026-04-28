@@ -246,7 +246,17 @@ public class DroneAI : Agent
         {
             Debug.Log($"[DRON-IA] ¡Objetivo recuperado de {other.name}!");
 
-            // Secuestro de red del dinosaurio (Task 3.1)
+            if (esPortadorEnemigo)
+            {
+                Player p = other.GetComponent<Player>();
+                if (p != null) p.RecibirAtaqueDron();
+                
+                // Al llamar a RecibirAtaqueDron, la bandera ya vuelve a la base automáticamente.
+                // El dron ya no necesita llevarla, puede volver a su estado de reposo.
+                return;
+            }
+
+            // Secuestro de red del dinosaurio (Task 3.1) - Solo para dino tirado
             var netSync = dinosaurioTransform.GetComponent<NetworkSync>();
             if (netSync != null) netSync.enabled = false;
 

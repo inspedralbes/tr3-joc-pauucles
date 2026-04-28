@@ -725,10 +725,13 @@ public class Player : MonoBehaviour
         lives = 0;
         UpdateLivesUI();
 
-        // 2. Teletransportar a base
+        // 2. Asegurar que el dinosaurio (bandera) vuelva a su base original
+        DeixarBandera(tornaraBase: true);
+
+        // 3. Teletransportar a base
         TornarABase();
 
-        // 3. Aplicar debuff (30s lento y salta menos)
+        // 4. Aplicar debuff (30s lento y salta menos)
         if (!isDebuffed)
         {
             StartCoroutine(DroneDebuffCoroutine(30f));
