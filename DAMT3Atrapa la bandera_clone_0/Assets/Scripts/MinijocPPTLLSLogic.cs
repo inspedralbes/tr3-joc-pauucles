@@ -78,8 +78,6 @@ public class MinijocPPTLLSLogic : MonoBehaviour
             {
                 _eleccioJ2 = (OpcioMinijoc)opcioId;
                 Debug.Log($"[PPTLLS] Rebut rival.");
-                
-                // HEM ELIMINAT EL CHIVATAZO "EL RIVAL JA HA TRIAT" PER PETICIÓ DE L'USUARI
             }
         }
     }
@@ -95,20 +93,11 @@ public class MinijocPPTLLSLogic : MonoBehaviour
 
         if (!_faseRevelacio)
         {
-            // El temps d'espera (10s) NOMÉS corre quan algú ja ha triat
-            bool algunTriat = (_eleccioJ1 != null || _eleccioJ2 != null);
-            
-            if (algunTriat)
-            {
-                _tempsRestant -= Time.deltaTime;
-                if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
-            }
-            else
-            {
-                if (_textTemps != null) _textTemps.text = "Esperant la primera elecció...";
-            }
+            // 1) TIMER ÚNICO: El temps corre des de l'inici (Task 1.1)
+            _tempsRestant -= Time.deltaTime;
+            if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
 
-            // Resolem si tenim les dues eleccions O s'ha acabat el temps
+            // Resolem si tenim les dues eleccions O s'ha acabat el temps (Task 2.2)
             if (_tempsRestant <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
             {
                 FinalitzarFaseEleccio();
@@ -116,8 +105,9 @@ public class MinijocPPTLLSLogic : MonoBehaviour
         }
         else
         {
+            // 2) RESOLUCIÓN INSTANTÁNEA: Reduïm la revelació al mínim o zero per anar ràpid (Task 2.1)
             _tempsRevelacio -= Time.deltaTime;
-            if (_tempsRevelacio <= 0)
+            if (_tempsRevelacio <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
             {
                 ResultatMinijoc res = MinijocPPTLLS.AvaluarGuanyador(_eleccioJ1 ?? OpcioMinijoc.Pedra, _eleccioJ2 ?? OpcioMinijoc.Pedra);
                 
@@ -129,8 +119,18 @@ public class MinijocPPTLLSLogic : MonoBehaviour
                 else
                 {
                     jocActiu = false;
-                    string guanyadorStr = (res == ResultatMinijoc.GuanyaJugador1) ? "Jugador 1" : "Jugador 2";
-                    MinijocUIManager.Instance.FinalitzarCombat(guanyadorStr);
+                    
+                    // Task 2.3: Usar nombres de usuario exactos (Task 1.1 de la propuesta)
+                    string winner = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador1.username : MinijocUIManager.Instance.jugador2.username;
+                    string loser = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador2.username : MinijocUIManager.Instance.jugador1.username;
+
+                    // Notificar al servidor (Task 1.1 y 2.3)
+                    if (MenuManager.Instance != null)
+                    {
+                        MenuManager.Instance.EnviarMinijocResult(winner, loser);
+                    }
+
+                    MinijocUIManager.Instance.FinalitzarCombat(winner, loser);
                 }
             }
         }
@@ -141,10 +141,6 @@ public class MinijocPPTLLSLogic : MonoBehaviour
         if (_faseRevelacio) return;
         _faseRevelacio = true;
 
-        // Si algú no ha triat i l'altre sí, el que no ha triat perd.
-        // Ho marquem posant una opció que sempre perdi contra l'altra si cal,
-        // però el més net és mostrar-ho en el text de resultat.
-        
         string resultatEspecial = "";
         if (_eleccioJ1 == null && _eleccioJ2 != null) resultatEspecial = "Has trigat massa! Guanya el rival.";
         else if (_eleccioJ1 != null && _eleccioJ2 == null) resultatEspecial = "El rival ha trigat massa! Guanyes tu.";

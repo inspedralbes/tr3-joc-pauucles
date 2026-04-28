@@ -30,7 +30,7 @@ public class MinijocCablePelatLogic : MonoBehaviour
                     Debug.Log("Minijoc Cable Pelat: Victòria Jugador 1");
                     
                     if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocResult("RIVAL_WIN");
-                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 1");
+                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 1", "Jugador 2");
                 }
             });
         }
@@ -43,7 +43,7 @@ public class MinijocCablePelatLogic : MonoBehaviour
                 {
                     enCurs = false;
                     Debug.Log("Minijoc Cable Pelat: Derrota! Guanya Jugador 2");
-                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 2");
+                    MinijocUIManager.Instance.FinalitzarCombat("Jugador 2", "Jugador 1");
                 }
             });
         }
@@ -55,7 +55,7 @@ public class MinijocCablePelatLogic : MonoBehaviour
         {
             enCurs = false;
             Debug.Log("Cable Pelat: El rival ha guanyat abans!");
-            MinijocUIManager.Instance.FinalitzarCombat("Jugador 2");
+            MinijocUIManager.Instance.FinalitzarCombat("Jugador 2", "Jugador 1");
         }
     }
 }

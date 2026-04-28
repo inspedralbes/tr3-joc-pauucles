@@ -10,13 +10,14 @@ public class MinijocAturaBarraLogic : MonoBehaviour
 
     private bool _jocActiu = false;
     private bool _faseRevelacio = false;
-    private float _tempsRevelacio = 3f;
+    private float _tempsRevelacio = 0.5f; // Task 2.1: Revelació més ràpida
 
     private float _tempsRestant = 10f;
     private float _fletxaPos = 0f;
     private float _fletxaSpeed = 400f;
     private float _zonaLeft = 0f;
-    private string _guanyador = "Empat";
+    private string _winner = "";
+    private string _loser = "";
     private float _tempsAcumulat = 0f;
     private Label _textTemps;
 
@@ -57,10 +58,10 @@ public class MinijocAturaBarraLogic : MonoBehaviour
     {
         _jocActiu = true;
         _faseRevelacio = false;
-        _tempsRevelacio = 3f;
+        _tempsRevelacio = 0.5f;
         _fletxaPos = 0f;
         _tempsAcumulat = 0f;
-        _tempsRestant = 10f;
+        _tempsRestant = 10f; // 1) TIMER ÚNICO: Inicia un cop (Task 1.1)
 
         _zonaLeft = Random.Range(50f, 400f);
         ActualitzarZonaUI();
@@ -99,9 +100,12 @@ public class MinijocAturaBarraLogic : MonoBehaviour
 
             if (_tempsRestant <= 0)
             {
-                _guanyador = "Jugador 2";
+                // Task 2.3: Identitats reals per a vides i stun
+                _winner = MinijocUIManager.Instance.jugador2.username;
+                _loser = MinijocUIManager.Instance.jugador1.username;
                 _faseRevelacio = true;
                 if (_textResultat != null) _textResultat.text = "TEMPS EXHAURIT!";
+                ResoldreXarxa();
             }
         }
         else
@@ -110,7 +114,7 @@ public class MinijocAturaBarraLogic : MonoBehaviour
             if (_tempsRevelacio <= 0)
             {
                 _jocActiu = false;
-                MinijocUIManager.Instance.FinalitzarCombat(_guanyador);
+                MinijocUIManager.Instance.FinalitzarCombat(_winner, _loser);
             }
         }
     }
@@ -128,16 +132,27 @@ public class MinijocAturaBarraLogic : MonoBehaviour
         
         if (dins)
         {
-            _guanyador = "Jugador 1";
+            // Guanya el local (Task 2.3)
+            _winner = MinijocUIManager.Instance.jugador1.username;
+            _loser = MinijocUIManager.Instance.jugador2.username;
             if (_textResultat != null) _textResultat.text = "DINS! Guanyes tu!";
-            if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocResult("RIVAL_WIN");
         }
         else
         {
-            // VICTORIA INSTANTÀNEA PER AL RIVAL SI FALLES
-            _guanyador = "Jugador 2";
+            // Guanya el rival (Task 2.3)
+            _winner = MinijocUIManager.Instance.jugador2.username;
+            _loser = MinijocUIManager.Instance.jugador1.username;
             if (_textResultat != null) _textResultat.text = "FORA! Guanya el rival!";
-            if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocResult("LOCAL_WIN"); // El rival rebrà que és local win per a ell
+        }
+        ResoldreXarxa();
+    }
+
+    private void ResoldreXarxa()
+    {
+        // 2) RESOLUCIÓN INSTANTÁNEA: El primer que acaba mana (Task 2.3)
+        if (MenuManager.Instance != null)
+        {
+            MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
         }
     }
 
@@ -149,25 +164,12 @@ public class MinijocAturaBarraLogic : MonoBehaviour
             {
                 _zonaLeft = novaZona;
                 ActualitzarZonaUI();
-                Debug.Log($"[AturaBarra] Zona sincronitzada: {_zonaLeft}");
             }
         }
     }
 
     public void RebreResultatXarxa(string winner)
     {
-        if (!_jocActiu || _faseRevelacio) return;
-
-        // Si el rival ens diu que ha guanyat, nosaltres perdem immediatament
-        if (winner == "RIVAL_WIN")
-        {
-            _faseRevelacio = true;
-            _guanyador = "Jugador 2"; // Per nosaltres el guanyador és el rival
-
-            if (_textResultat != null)
-            {
-                _textResultat.text = "EL RIVAL HA ESTAT MÉS RÀPID!";
-            }
-        }
+        // PPTLLS no ho usava, però en AturaBarra sí per a la sincronització de velocitat
     }
 }

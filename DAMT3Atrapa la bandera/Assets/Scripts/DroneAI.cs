@@ -165,7 +165,22 @@ public class DroneAI : Agent
     {
         DeterminarEstadoActual();
 
-        // Task 1.5: Bucle de entrega y reposo físico
+        // Task 3.1, 3.2, 3.3: Estabilidad del Dron (Modo Piedra)
+        if (currentState == DroneState.A_Salvo && !portantDino && baseEquipo != null)
+        {
+            // Inmovilidad absoluta
+            if (rb != null) rb.linearVelocity = Vector2.zero;
+            transform.position = baseEquipo.position;
+
+            // Desactivar IA para ahorrar recursos y evitar jitters
+            if (decisionRequester != null) decisionRequester.enabled = false;
+            return; 
+        }
+
+        // Si no estamos en reposo, aseguramos que la IA esté activa
+        if (decisionRequester != null && !decisionRequester.enabled) decisionRequester.enabled = true;
+
+        // Bucle de entrega si transportamos dino
         if (portantDino && baseEquipo != null && dinosaurioTransform != null)
         {
             float distToBase = Vector2.Distance(transform.position, baseEquipo.position);
@@ -181,14 +196,6 @@ public class DroneAI : Agent
                 portantDino = false;
             }
         }
-        else if (currentState == DroneState.A_Salvo && baseEquipo != null)
-        {
-            // Forzar posición exacta de base en reposo para evitar derivas
-            transform.position = Vector3.Lerp(transform.position, baseEquipo.position, Time.deltaTime * 5f);
-        }
-
-        // Aseguramos que DecisionRequester esté siempre activo (Task 2.1)
-        if (decisionRequester != null && !decisionRequester.enabled) decisionRequester.enabled = true;
     }
 
     private void OnTriggerEnter2D(Collider2D other)

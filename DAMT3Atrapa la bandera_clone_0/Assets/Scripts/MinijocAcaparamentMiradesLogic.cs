@@ -8,13 +8,14 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
     private Button _btnAmunt, _btnAvall, _btnEsquerra, _btnDreta;
 
     private float _tempsRestant = 10f;
-    private float _tempsRevelacio = 3f;
+    private float _tempsRevelacio = 0.5f; // Task 2.1: Revelació ràpida
     private bool _faseRevelacio = false;
     private bool _jocActiu = false;
 
     private string _eleccioJ1 = "Cap";
     private string _eleccioJ2 = "Cap";
-    private string _guanyador = "Empat";
+    private string _winner = "";
+    private string _loser = "";
     private bool _sócAtacant = false;
 
     public void SetRole(bool atacant)
@@ -47,8 +48,8 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
 
     public void IniciarMinijoc()
     {
-        _tempsRestant = 10f;
-        _tempsRevelacio = 3f;
+        _tempsRestant = 10f; // 1) TIMER ÚNICO: Inicia un cop (Task 1.1)
+        _tempsRevelacio = 0.5f;
         _faseRevelacio = false;
         _jocActiu = true;
         _eleccioJ1 = "Cap";
@@ -87,20 +88,9 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
 
         if (!_faseRevelacio)
         {
-            // El temps (10s) NOMÉS corre quan algú ja ha triat
-            bool algunTriat = (_eleccioJ1 != "Cap" || _eleccioJ2 != "Cap");
+            _tempsRestant -= Time.deltaTime;
+            if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
 
-            if (algunTriat)
-            {
-                _tempsRestant -= Time.deltaTime;
-                if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
-            }
-            else
-            {
-                if (_textTemps != null) _textTemps.text = "Esperant la primera acció...";
-            }
-
-            // Keyboard Input (W/A/S/D) for J1
             if (_eleccioJ1 == "Cap")
             {
                 if (Input.GetKeyDown(KeyCode.W)) RegistrarTriar("Amunt");
@@ -109,6 +99,7 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
                 else if (Input.GetKeyDown(KeyCode.D)) RegistrarTriar("Dreta");
             }
 
+            // 2) RESOLUCIÓN INSTANTÁNEA (Task 2.2)
             if (_tempsRestant <= 0 || (_eleccioJ1 != "Cap" && _eleccioJ2 != "Cap"))
             {
                 FinalitzarFaseEleccio();
@@ -120,7 +111,7 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
             if (_tempsRevelacio <= 0)
             {
                 _jocActiu = false;
-                MinijocUIManager.Instance.FinalitzarCombat(_guanyador);
+                MinijocUIManager.Instance.FinalitzarCombat(_winner, _loser);
             }
         }
     }
@@ -130,34 +121,37 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
         if (_faseRevelacio) return;
         _faseRevelacio = true;
         
-        // Si no s'ha triat, penalització (per exemple, triar la contrària a la del rival o default)
-        string resultatEspecial = "";
-        if (_eleccioJ1 == "Cap" && _eleccioJ2 != "Cap") resultatEspecial = "Has trigat massa!";
-        else if (_eleccioJ1 != "Cap" && _eleccioJ2 == "Cap") resultatEspecial = "El rival ha trigat massa!";
-
-        // Random if not chosen
         if (_eleccioJ1 == "Cap") _eleccioJ1 = "Amunt"; 
         if (_eleccioJ2 == "Cap") _eleccioJ2 = "Avall";
 
-        // Lògica de victòria: Si coincideixen, l'atacant guanya
         bool coincideixen = (_eleccioJ1 == _eleccioJ2);
 
-        if (coincideixen)
+        // Guanyador local (J1) si soc atacant i coincideixo, o si soc defensor i NO coincideixo
+        bool guanyaJ1 = (_sócAtacant == coincideixen);
+
+        // Task 2.3: Identitats reals per a xarxa
+        if (_eleccioJ1 == "Cap" && _eleccioJ2 == "Cap")
         {
-            // Si jo sóc l'atacant i coincideixo -> Guanyo jo (J1)
-            // Si el rival és l'atacant i coincideix -> Guanya ell (J2)
-            _guanyador = _sócAtacant ? "Jugador 1" : "Jugador 2";
+            _winner = "Empat";
+            _loser = "Empat";
+        }
+        else if (guanyaJ1)
+        {
+            _winner = MinijocUIManager.Instance.jugador1.username;
+            _loser = MinijocUIManager.Instance.jugador2.username;
         }
         else
         {
-            // Si no coincideixen, el defensor guanya
-            _guanyador = _sócAtacant ? "Jugador 2" : "Jugador 1";
+            _winner = MinijocUIManager.Instance.jugador2.username;
+            _loser = MinijocUIManager.Instance.jugador1.username;
         }
 
-        if (_textResultat != null)
+        if (_textResultat != null) _textResultat.text = "¡FI!";
+
+        // El primer que acaba envia el resultat (Task 2.3)
+        if (MenuManager.Instance != null)
         {
-            if (!string.IsNullOrEmpty(resultatEspecial)) _textResultat.text = resultatEspecial;
-            else _textResultat.text = $"TU:{_eleccioJ1} vs RIVAL:{_eleccioJ2}. Guanya {_guanyador}!";
+            MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
         }
     }
 }

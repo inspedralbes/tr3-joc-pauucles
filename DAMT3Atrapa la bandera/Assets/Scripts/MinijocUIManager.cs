@@ -28,6 +28,8 @@ public class MinijocUIManager : MonoBehaviour
 
     public bool minijocActiu = false;
     private int _activeMinigameId = 0;
+    private bool _combatAcabat = false;
+    public bool combatAcabat { get => _combatAcabat; set => _combatAcabat = value; }
 
     private readonly string[] _nomsMinijocs = {
         "Cap", // ID 0 no s'usa
@@ -55,12 +57,25 @@ public class MinijocUIManager : MonoBehaviour
         else
         {
             _uiDocument.enabled = true;
+            _uiDocument.sortingOrder = 100; // Forçar que estigui per sobre de tot
+            
+            minijocActiu = false; // FORÇAR RESET AL COMENÇAR
+            
+            if (_uiDocument.visualTreeAsset == null)
+                Debug.LogError("[MinijocUI] CRÍTIC: El UIDocument no té cap VisualTreeAsset (UXML) assignat!");
+            
+            if (_uiDocument.panelSettings == null)
+                Debug.LogWarning("[MinijocUI] Alerta: El UIDocument no té PanelSettings. Podria no renderitzar-se.");
+
             if (_uiDocument.rootVisualElement != null)
             {
                 _uiDocument.rootVisualElement.style.display = DisplayStyle.None;
             }
+            Debug.Log($"[MinijocUI] UIDocument preparat. SortOrder: {_uiDocument.sortingOrder}, Actiu: {minijocActiu}");
         }
     }
+
+
 
     private void Start()
     {
@@ -78,14 +93,15 @@ public class MinijocUIManager : MonoBehaviour
         AmagarTotsElsMinijocs(root);
         root.style.display = DisplayStyle.Flex;
         gameObject.SetActive(true);
+        this.enabled = true;
         
-        Debug.Log($"[MinijocUI] Iniciant minijoc sincronitzat (Index: {forcarGameIndex})");
+        Debug.Log($"[MinijocUI] Iniciant minijoc sincronitzat (Index: {forcarGameIndex}). Root Display: {root.style.display}");
 
         // --- ESTILITZACIÓ PROCEDURAL (Task 3.1 i 3.2) ---
         Color fonsFosc = new Color(0, 0, 0, 0.85f);
         
-        // 3.1 Aplicar fons a tots els contenidors de minijoc
-        string[] contenidors = { "ContenidorPPTLLS", "ContenidorParellsSenars", "ContenidorAturaBarra", "ContenidorPolsimForca", "ContenidorAcaparament" };
+        // 3.1 Aplicar fons a todos los contenedores de minijuego (Noms corregits)
+        string[] contenidors = { "ContenidorPPTLLS", "ContenidorParellsSenars", "ContenidorAturaBarra", "ContenidorPolsForca", "ContenidorAcaparamentMirades" };
         foreach (var nom in contenidors)
         {
             VisualElement c = root.Q<VisualElement>(nom);
@@ -115,6 +131,12 @@ public class MinijocUIManager : MonoBehaviour
         _jugador1 = g1.GetComponent<Player>();
         _jugador2 = g2.GetComponent<Player>();
 
+        // Fix preventiu: Assegurar que els noms estiguin omplerts (especialment per a remots)
+        if (_jugador1 != null && string.IsNullOrEmpty(_jugador1.username)) 
+            _jugador1.username = _jugador1.gameObject.name;
+        if (_jugador2 != null && string.IsNullOrEmpty(_jugador2.username)) 
+            _jugador2.username = _jugador2.gameObject.name;
+
         if (_jugador1 != null) _jugador1.potMoure = false;
         if (_jugador2 != null) _jugador2.potMoure = false;
 
@@ -139,7 +161,7 @@ public class MinijocUIManager : MonoBehaviour
         _activeMinigameId = (forcarGameIndex > 0) ? forcarGameIndex : Random.Range(1, 7);
         
         string nomJoc = (_activeMinigameId < _nomsMinijocs.Length) ? _nomsMinijocs[_activeMinigameId] : "Desconegut";
-        Debug.Log("Ruleta: Toca jugar a " + nomJoc + " (ID: " + _activeMinigameId + ")");
+        Debug.Log($"[MinijocUI] Preparant joc: {nomJoc} (ID: {_activeMinigameId})");
 
         switch (_activeMinigameId)
         {
@@ -153,7 +175,7 @@ public class MinijocUIManager : MonoBehaviour
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
                 }
-                else ResolverEmpatDirecte();
+                else { Debug.LogError("[MinijocUI] CRÍTIC: ContenidorPPTLLS no trobat!"); ResolverEmpatDirecte(); }
                 break;
             case 2:
                 var contParells = root.Q<VisualElement>("ContenidorParellsSenars");
@@ -165,7 +187,7 @@ public class MinijocUIManager : MonoBehaviour
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
                 }
-                else ResolverEmpatDirecte();
+                else { Debug.LogError("[MinijocUI] CRÍTIC: ContenidorParellsSenars no trobat!"); ResolverEmpatDirecte(); }
                 break;
             case 3:
                 var contAtura = root.Q<VisualElement>("ContenidorAturaBarra");
@@ -177,10 +199,11 @@ public class MinijocUIManager : MonoBehaviour
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
                 }
-                else ResolverEmpatDirecte();
+                else { Debug.LogError("[MinijocUI] CRÍTIC: ContenidorAturaBarra no trobat!"); ResolverEmpatDirecte(); }
                 break;
             case 5:
                 var contPols = root.Q<VisualElement>("ContenidorPolsForca");
+                if (contPols == null) contPols = root.Q<VisualElement>("ContenidorPolsimForca"); // Fallback per typo
                 if (contPols != null)
                 {
                     contPols.style.display = DisplayStyle.Flex;
@@ -189,33 +212,31 @@ public class MinijocUIManager : MonoBehaviour
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
                 }
-                else ResolverEmpatDirecte();
+                else { Debug.LogError("[MinijocUI] CRÍTIC: ContenidorPolsForca no trobat!"); ResolverEmpatDirecte(); }
                 break;
             case 6:
                 var contAcaparament = root.Q<VisualElement>("ContenidorAcaparamentMirades");
+                if (contAcaparament == null) contAcaparament = root.Q<VisualElement>("ContenidorAcaparament"); // Fallback per typo
                 if (contAcaparament != null)
                 {
                     contAcaparament.style.display = DisplayStyle.Flex;
                     MinijocAcaparamentMiradesLogic logic = GetComponent<MinijocAcaparamentMiradesLogic>() ?? gameObject.AddComponent<MinijocAcaparamentMiradesLogic>();
                     
-                    // Determinar si som l'atacant o el defensor
-                    bool socAtacant = false;
-                    if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
-                    {
-                        socAtacant = (GameManager.Instance.localPlayer == _atacant);
-                    }
+                    bool socAtacant = (GameManager.Instance != null && GameManager.Instance.localPlayer != null) ? (GameManager.Instance.localPlayer == _atacant) : false;
                     
-                    Debug.Log("[MinijocUI] Inicialitzant AcaparamentMirades (Atacant=" + socAtacant + ")...");
+                    Debug.Log("[MinijocUI] Inicialitzant AcaparamentMirades (Atacante=" + socAtacant + ")...");
                     logic.SetRole(socAtacant);
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
                 }
-                else ResolverEmpatDirecte();
+                else { Debug.LogError("[MinijocUI] CRÍTIC: ContenidorAcaparamentMirades no trobat!"); ResolverEmpatDirecte(); }
                 break;
             default:
                 ResolverEmpatDirecte();
                 break;
         }
+        
+        Debug.Log($"[MinijocUI] Combat preparat i mostrat: {_atacant.username} vs {_defensor.username}. Joc: {_activeMinigameId}");
     }
 
     private void AmagarTotsElsMinijocs(VisualElement root)
@@ -238,86 +259,80 @@ public class MinijocUIManager : MonoBehaviour
         }
     }
 
-    public void FinalitzarCombat(string nomGuanyador)
+    public void FinalitzarCombat(string winnerUsername, string loserUsername)
     {
-        Debug.Log("[MinijocUI] Finalitzant combat. Guanyador: " + nomGuanyador);
+        // Task 3.2: Guarda de reentrancia
+        if (!minijocActiu || _combatAcabat) return;
+        _combatAcabat = true;
         
+        Debug.Log($"[MinijocUI] Finalitzant combat. Guanyador: {winnerUsername}, Perdedor: {loserUsername}");
+        
+        // 5.1 LIMPIEZA DE UI INMEDIATA
         if (_uiDocument != null && _uiDocument.rootVisualElement != null) 
         {
             var root = _uiDocument.rootVisualElement;
             AmagarTotsElsMinijocs(root);
             root.style.display = DisplayStyle.None;
-            Debug.Log("[MinijocUI] UI amagada (None) després del combat.");
         }
 
-        // 3.1 Tancar el GameObject del Manager
         gameObject.SetActive(false);
 
-        // 3.2 Notificar als jugadors del resultat
-        
-        Player localPlayer = null;
-        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
-        foreach (var p in allPlayers)
-        {
-            if (p.GetComponent<RemotePlayer>() == null) // El que no té RemotePlayer és el local
-            {
-                localPlayer = p;
-                break;
-            }
-        }
-
-        // 3. EFECTE DE XOC / EMPENTA (Knockback) per als dos jugadors
+        // 3. EFECTE DE XOC / EMPENTA (Knockback)
         if (_jugador1 != null && _jugador2 != null)
         {
-            Player p1 = _jugador1.GetComponent<Player>();
-            Player p2 = _jugador2.GetComponent<Player>();
-            if (p1 != null && p2 != null)
-            {
-                p1.AplicarEmpenta(_jugador2.transform.position);
-                p2.AplicarEmpenta(_jugador1.transform.position);
-            }
+            _jugador1.AplicarEmpenta(_jugador2.transform.position);
+            _jugador2.AplicarEmpenta(_jugador1.transform.position);
         }
 
-        // 4. PROCESSAR RESULTATS LOCALS I VISUALS
-        if (nomGuanyador != "Empat")
+        // 4. PROCESSAR RESULTATS (Task 3.3: Filtre estricte d'identitat local)
+        string miNombre = (GameManager.Instance != null && GameManager.Instance.localPlayer != null) 
+                          ? GameManager.Instance.localPlayer.username 
+                          : WebSocketClient.LocalUsername;
+
+        if (winnerUsername != "Empat")
         {
-            // Determinar qui ha guanyat i qui ha perdut
-            Player pGuanyador = (nomGuanyador == "Jugador 1") ? _jugador1 : _jugador2;
-            Player pPerdedor = (nomGuanyador == "Jugador 1") ? _jugador2 : _jugador1;
-
-            // El guanyador SEMPRE es pot moure
-            if (pGuanyador != null) pGuanyador.GuanyarMinijoc();
-
-            // El perdedor rep el càstig
-            if (pPerdedor != null)
+            // El guanyador local es desbloqueja
+            if (string.Equals(winnerUsername, miNombre, System.StringComparison.OrdinalIgnoreCase))
             {
-                if (pPerdedor == localPlayer) pPerdedor.ProcesarDerrota(8f);
-                else pPerdedor.AplicarEfecteVisualDerrota(8f);
+                if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
+                    GameManager.Instance.localPlayer.GuanyarMinijoc();
+            }
+            // El perdedor local processa derrota (vides + stun + animació)
+            else if (string.Equals(loserUsername, miNombre, System.StringComparison.OrdinalIgnoreCase))
+            {
+                if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
+                    GameManager.Instance.localPlayer.ProcesarDerrota(8f);
+            }
+
+            // Sync visual de Stun per als remots (perquè vegin el stun de l'altre)
+            Player pPerdedor = (_jugador1 != null && _jugador1.username == loserUsername) ? _jugador1 : _jugador2;
+            if (pPerdedor != null && pPerdedor.username != miNombre)
+            {
+                pPerdedor.AplicarEfecteVisualDerrota(8f);
+            }
+            
+            // Si el defensor ha perdut, ha de deixar la bandera (Només si som el defensor)
+            if (pPerdedor == _defensor && _defensor != null && _defensor.username == miNombre)
+            {
+                _defensor.DeixarBandera();
+                GameObject banderaObj = GameObject.FindGameObjectWithTag("Bandera");
+                if (banderaObj != null && banderaObj.transform.parent == _defensor.transform)
+                {
+                    banderaObj.transform.SetParent(null);
+                    Bandera scriptB = banderaObj.GetComponent<Bandera>();
+                    if (scriptB != null) scriptB.fugint = true;
+                }
             }
         }
         else
         {
-            // CAS D'EMPAT: Desbloquegem als dos immediatament
-            Debug.Log("[MinijocUI] Empat detectat. Desbloquejant ambdós jugadors.");
-            if (_jugador1 != null) _jugador1.GuanyarMinijoc();
-            if (_jugador2 != null) _jugador2.GuanyarMinijoc();
+            // CAS D'EMPAT: Desbloquegem localment si estem implicats
+            if (_jugador1 != null && _jugador1.username == miNombre) _jugador1.GuanyarMinijoc();
+            if (_jugador2 != null && _jugador2.username == miNombre) _jugador2.GuanyarMinijoc();
         }
 
-        bool defensorHaPerdut = false;
-        if (nomGuanyador == "Jugador 1" && _defensor == _jugador2) defensorHaPerdut = true;
-        else if (nomGuanyador == "Jugador 2" && _defensor == _jugador1) defensorHaPerdut = true;
-
-        if (defensorHaPerdut)
-        {
-            _defensor.DeixarBandera();
-            GameObject banderaObj = GameObject.FindGameObjectWithTag("Bandera");
-            if (banderaObj != null && banderaObj.transform.parent == _defensor.transform)
-            {
-                banderaObj.transform.SetParent(null);
-                Bandera scriptB = banderaObj.GetComponent<Bandera>();
-                if (scriptB != null) scriptB.fugint = true;
-            }
-        }
+        // Limpieza de estado post-combate
+        Player.LimpiarEstadoCombate();
 
         minijocActiu = false;
         if (_jugador1 != null) _jugador1.FinalitzarCombat();
@@ -327,6 +342,9 @@ public class MinijocUIManager : MonoBehaviour
     public void HideUI()
     {
         minijocActiu = false;
+        _combatAcabat = false; // Task 3.5: Reset
+        Player.LimpiarEstadoCombate();
+
         if (_jugador1 != null) _jugador1.FinalitzarCombat();
         if (_jugador2 != null) _jugador2.FinalitzarCombat();
         
@@ -335,7 +353,6 @@ public class MinijocUIManager : MonoBehaviour
             var root = _uiDocument.rootVisualElement;
             AmagarTotsElsMinijocs(root);
             root.style.display = DisplayStyle.None;
-            Debug.Log("[MinijocUI] UI amagada (None) manualment/forçadament.");
         }
     }
 
@@ -344,7 +361,6 @@ public class MinijocUIManager : MonoBehaviour
     {
         if (!minijocActiu) return;
         
-        // Passem el missatge a la lògica activa segons l'ID
         switch (_activeMinigameId)
         {
             case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreActualitzacioXarxa(data); break;
@@ -352,26 +368,20 @@ public class MinijocUIManager : MonoBehaviour
             case 3: GetComponent<MinijocAturaBarraLogic>()?.RebreActualitzacioXarxa(data); break;
             case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreActualitzacioXarxa(data); break;
             case 6: GetComponent<MinijocAcaparamentMiradesLogic>()?.RebreActualitzacioXarxa(data); break;
-            // Altres minijocs poden ignorar o implementar segons calgui
         }
     }
 
-    public void RebreResultatXarxa(string winner)
+    public void RebreResultatXarxa(string winner, string loser)
     {
         if (!minijocActiu) return;
 
-        Debug.Log($"[MinijocUI] Rebut resultat de xarxa. Guanyador remot: {winner}");
-        
-        // En jocs de velocitat, el primer que arriba mana
-        switch (_activeMinigameId)
-        {
-            case 1: GetComponent<MinijocPPTLLSLogic>()?.RebreResultatXarxa(winner); break;
-            case 3: GetComponent<MinijocAturaBarraLogic>()?.RebreResultatXarxa(winner); break;
-            case 4: GetComponent<MinijocCablePelatLogic>()?.RebreResultatXarxa(winner); break;
-            case 5: GetComponent<MinijocPolsimForcaLogic>()?.RebreResultatXarxa(winner); break;
-        }
+        Debug.Log($"[MinijocUI] Rebut resultat de xarxa. Guanyador: {winner}, Perdedor: {loser}");
+        FinalitzarCombat(winner, loser);
     }
     // ---------------------------------------
 
-    private void ResolverEmpatDirecte() { Debug.Log("Minijoc no disponible. Empat."); HideUI(); }
+    private void ResolverEmpatDirecte() { 
+        Debug.LogWarning("[MinijocUI] ResolverEmpatDirecte cridat! El minijoc es tancarà immediatament.");
+        HideUI(); 
+    }
 }

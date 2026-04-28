@@ -28,20 +28,17 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
 
     public void IniciarMinijoc()
     {
-        // SISTEMA DE SEMILLA PARA SINCRONIZACIÓN INSTANTÁNEA
-        // Usamos el roomId como semilla para que ambos generen lo mismo sin red
         if (MenuManager.Instance != null && !string.IsNullOrEmpty(MenuManager.Instance.currentRoomId))
         {
             int seed = MenuManager.Instance.currentRoomId.GetHashCode();
             Random.InitState(seed);
-            Debug.Log($"[ParellsSenars] Usant llavor de sala ({MenuManager.Instance.currentRoomId}) per a sincronització instantània.");
         }
 
         _num1 = Random.Range(15, 80);
         _num2 = Random.Range(15, 80);
         
         jocActiu = true;
-        _tempsRestant = 10f;
+        _tempsRestant = 10f; // 1) TIMER ÚNICO: Inicia un cop (Task 1.1)
         _eleccioJ1 = null;
         _eleccioJ2 = null;
         ActualitzarUI();
@@ -57,21 +54,14 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
         }
         
         respostaEsParell = ((_num1 + _num2) % 2 == 0);
-        if (_textTemps != null) _textTemps.text = (_num1 == 0) ? "..." : "Calcula!";
+        if (_textTemps != null) _textTemps.text = "Calcula!";
     }
 
     public void RebreActualitzacioXarxa(string data)
     {
         if (!jocActiu) return;
 
-        if (data.StartsWith("NUMS:"))
-        {
-            string[] parts = data.Substring(5).Split(',');
-            _num1 = int.Parse(parts[0]);
-            _num2 = int.Parse(parts[1]);
-            ActualitzarUI();
-        }
-        else if (data.StartsWith("CHOICE:"))
+        if (data.StartsWith("CHOICE:"))
         {
             _eleccioJ2 = (data.Split(':')[1] == "1");
             Debug.Log("[ParellsSenars] Rival ha escollit.");
@@ -90,14 +80,11 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
     {
         if (!jocActiu) return;
 
-        bool algunTriat = (_eleccioJ1 != null || _eleccioJ2 != null);
+        // 1) TIMER ÚNICO: El temps corre sempre (Task 1.1)
+        _tempsRestant -= Time.deltaTime;
+        if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
 
-        if (algunTriat)
-        {
-            _tempsRestant -= Time.deltaTime;
-            if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
-        }
-
+        // 2) RESOLUCIÓN INSTANTÁNEA (Task 2.2)
         if (_tempsRestant <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
         {
             Resoldre();
@@ -115,28 +102,31 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
         if (_eleccioJ1 == null) localCorrecte = false;
         if (_eleccioJ2 == null) rivalCorrecte = false;
 
-        string guanyador = "Empat";
-        if (localCorrecte && !rivalCorrecte) guanyador = "Jugador 1";
-        else if (!localCorrecte && rivalCorrecte) guanyador = "Jugador 2";
+        string winner = "Empat";
+        string loser = "Empat"; // Task 2.3
 
-        if (guanyador == "Empat" && (localCorrecte || rivalCorrecte))
+        if (localCorrecte && !rivalCorrecte)
         {
-            // Si tots dos encerten, reiniciem per desempatar
+            winner = MinijocUIManager.Instance.jugador1.username;
+            loser = MinijocUIManager.Instance.jugador2.username;
+        }
+        else if (!localCorrecte && rivalCorrecte)
+        {
+            winner = MinijocUIManager.Instance.jugador2.username;
+            loser = MinijocUIManager.Instance.jugador1.username;
+        }
+
+        if (winner == "Empat" && (localCorrecte || rivalCorrecte))
+        {
             IniciarMinijoc();
         }
         else
         {
-            MinijocUIManager.Instance.FinalitzarCombat(guanyador);
+            if (MenuManager.Instance != null)
+            {
+                MenuManager.Instance.EnviarMinijocResult(winner, loser);
+            }
+            MinijocUIManager.Instance.FinalitzarCombat(winner, loser);
         }
-    }
-
-    private Player GetLocalPlayer()
-    {
-        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
-        foreach (var p in allPlayers)
-        {
-            if (p.GetComponent<RemotePlayer>() == null) return p;
-        }
-        return null;
     }
 }

@@ -7,13 +7,14 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
     private float tempsRestant = 10f;
     private bool jocActiu = false;
     private bool faseRevelacio = false;
-    private float tempsRevelacio = 3f;
+    private float tempsRevelacio = 0.5f; // Task 2.1: Revelació ràpida
 
     private Label textTemps;
     private Label textResultat;
     private VisualElement barraJ1;
     private Button btnPrem;
-    private string _guanyador = "Empat";
+    private string _winner = "";
+    private string _loser = "";
 
     public void InicialitzarUI(VisualElement root)
     {
@@ -29,20 +30,18 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         }
 
         if (textResultat != null) textResultat.text = "";
-        Debug.Log($"UI de Polsim de Força inicialitzada. Botó={btnPrem != null}");
     }
 
     private void OnBtnClicked()
     {
-        Debug.Log("[PolsimForca] Botó Click detectat!");
         ActualitzarPuntuacions(1);
     }
 
     public void IniciarMinijoc()
     {
         puntuacioJ1 = 50f;
-        tempsRestant = 10f;
-        tempsRevelacio = 3f;
+        tempsRestant = 10f; // 1) TIMER ÚNICO: Inicia un cop (Task 1.1)
+        tempsRevelacio = 0.5f;
         jocActiu = true;
         faseRevelacio = false;
         
@@ -63,13 +62,18 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
                 return;
             }
 
-            // Entrada Jugador Local: Qualsevol tecla d'acció (Espai, Return o Clic)
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
             {
                 ActualitzarPuntuacions(1);
             }
 
             ActualitzarUI();
+
+            // 2) RESOLUCIÓN INSTANTÁNEA: Si algú arriba al límit, s'acaba (Task 2.2)
+            if (puntuacioJ1 >= 100f || puntuacioJ1 <= 0f)
+            {
+                FinalitzarFaseJoc();
+            }
         }
         else
         {
@@ -77,7 +81,7 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
             if (tempsRevelacio <= 0)
             {
                 jocActiu = false;
-                MinijocUIManager.Instance.FinalitzarCombat(_guanyador);
+                MinijocUIManager.Instance.FinalitzarCombat(_winner, _loser);
             }
         }
     }
@@ -87,7 +91,6 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         if (jugador == 1) 
         {
             puntuacioJ1 += 2f;
-            // Envia clic local al rival
             if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocUpdate("CLICK");
         }
         else puntuacioJ1 -= 2f;
@@ -99,7 +102,6 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
     {
         if (jocActiu && !faseRevelacio && data == "CLICK")
         {
-            // El rival ha fet clic, nosaltres perdem terreny (per nosaltres el rival és el jugador 2)
             ActualitzarPuntuacions(2);
             ActualitzarUI();
         }
@@ -107,12 +109,6 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
     public void RebreResultatXarxa(string winner)
     {
-        // En aquest joc el resultat es calcula per temps, però per seguretat:
-        if (jocActiu && !faseRevelacio && winner == "RIVAL_WIN")
-        {
-            puntuacioJ1 = 0;
-            FinalitzarFaseJoc();
-        }
     }
 
     private void ActualitzarUI()
@@ -123,13 +119,30 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
 
     private void FinalitzarFaseJoc()
     {
+        if (faseRevelacio) return;
         faseRevelacio = true;
         
-        _guanyador = "Empat";
-        if (puntuacioJ1 > 55) _guanyador = "Jugador 1";
-        else if (puntuacioJ1 < 45) _guanyador = "Jugador 2";
+        _winner = "Empat";
+        _loser = "Empat"; // Task 2.3
+
+        if (puntuacioJ1 > 50) 
+        {
+            _winner = MinijocUIManager.Instance.jugador1.username;
+            _loser = MinijocUIManager.Instance.jugador2.username;
+        }
+        else if (puntuacioJ1 < 50) 
+        {
+            _winner = MinijocUIManager.Instance.jugador2.username;
+            _loser = MinijocUIManager.Instance.jugador1.username;
+        }
 
         if (textResultat != null) 
-            textResultat.text = $"Final! Guanya {_guanyador}!";
+            textResultat.text = "¡FIN!";
+
+        // El primer que acaba envia el resultat (Task 2.3)
+        if (MenuManager.Instance != null)
+        {
+            MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
+        }
     }
 }

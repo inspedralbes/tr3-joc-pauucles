@@ -15,6 +15,7 @@ public class Player : MonoBehaviour
     public int idJugador = 1; // 1 per a J1, 2 per a J2
     public string equip; // "A" o "B"
     public string username;
+    private bool enCombate = false;
 
     // Variables per a la sincronització determinista (sense xarxa)
     private static float ultimXoc = 0f;
@@ -23,6 +24,7 @@ public class Player : MonoBehaviour
     private int lives = 3;
     private int maxLives = 3;
     private bool isFrozen = false;
+    public bool isStunned => isFrozen; // Task 1.1: Alias para legibilidad
     private bool isInvulnerable = false;
     private Rigidbody2D rb;
     private SpriteRenderer sr;
@@ -185,77 +187,62 @@ public class Player : MonoBehaviour
     {
         if (collision.gameObject.CompareTag("Player"))
         {
-            // Bloquejar combat només si el propi jugador està en STUN
-            // Ignorem el check del rival perquè la seva variable 'potCombatre' no se sincronitza per xarxa
-            if (!potCombatre) {
-                string nameForLog = string.IsNullOrEmpty(username) ? WebSocketClient.LocalUsername : username;
-                Debug.Log($"[COMBAT] Skipped: {nameForLog} està en STUN/Cooldown.");
-                return;
-            }
-            
-            // 2.1 Tallafocs temporal per evitar doble dispar d'event (Physics Jitter)
-            if (Time.time - ultimXoc < 3f) {
-                Debug.Log($"[COMBAT] Skipped: Massa aviat des de l'últim xoc ({Time.time - ultimXoc:F1}s / 3.0s)");
-                return;
-            }
+            // Task 1.2: Candado de colisión
+            if (enCombate || isFrozen || !potCombatre) return;
+
+            // Task 1.1: SOLAMENT el Host processa el xoc entre jugadors
+            if (MenuManager.Instance == null || !MenuManager.Instance.IsHost()) return;
+
+            // Tallafocs temporal per evitar doble dispar d'event (Physics Jitter)
+            if (Time.time - ultimXoc < 3f) return;
 
             RemotePlayer rp = collision.gameObject.GetComponent<RemotePlayer>();
-            if (rp == null || string.IsNullOrEmpty(rp.username)) {
-                // Si no hi ha RemotePlayer, pot ser un bot o un test local, però necessitem un nom pels minijocs
-                return;
-            }
+            if (rp == null || string.IsNullOrEmpty(rp.username)) return;
 
             Player opponent = collision.gameObject.GetComponent<Player>();
-            if (opponent != null && opponent.equip == this.equip) {
-                Debug.Log($"[COMBAT] Skipped: {username} i {rp.username} són del mateix equip ({this.equip})");
-                return;
-            }
+            if (opponent != null && opponent.equip == this.equip) return;
 
             if (opponent != null && opponent.equip != this.equip)
             {
-                // 2.2 Sincronització de Col·lisió (Només un mana per evitar conflictes)
+                // Task 1.3: Marcamos estado ocupado inmediatamente para evitar colisiones múltiples
+                enCombate = true;
+
+                // El Host decideix el joc
                 ultimXoc = Time.time;
                 comptadorCombats++;
 
-                string localName = WebSocketClient.LocalUsername;
-                string opponentName = rp != null ? rp.username : "Desconegut";
+                // Asegurar que tenemos un nombre válido
+                string localName = string.IsNullOrEmpty(WebSocketClient.LocalUsername) ? this.username : WebSocketClient.LocalUsername;
+                string opponentName = rp.username;
+                
+                if (string.IsNullOrEmpty(localName)) localName = "JugadorHost";
+                if (string.IsNullOrEmpty(opponentName)) opponentName = collision.gameObject.name;
 
-                // Lògica de Master: El que té el nom alfabèticament menor decideix el joc
-                bool soyMaster = string.Compare(localName, opponentName) < 0;
+                // Triar el joc de forma aleatòria (Ruleta)
+                int[] jocsValids = { 1, 2, 3, 5, 6 };
+                int gameIndex = jocsValids[UnityEngine.Random.Range(0, jocsValids.Length)];
 
-                Debug.Log($"[COL·LISIÓ] Iniciant fase minijoc. Local={localName}, Rival={opponentName}, SocMaster={soyMaster}");
+                Debug.Log($"[HOST-MASTER] Col·lisió detectada ({localName} vs {opponentName}). Seleccionat minijoc {gameIndex}. Enviant START_MINIGAME...");
 
-                if (soyMaster)
-                {
-                    // Generar un índex de joc aleatori entre els 5 jocs disponibles:
-                    // 1: PPTLLS, 2: Parells/Senars, 3: Atura Barra, 5: Pols Força, 6: Acaparament
-                    int[] jocsValids = { 1, 2, 3, 5, 6 };
-                    int gameIndex = jocsValids[UnityEngine.Random.Range(0, jocsValids.Length)];
+                // Determinem atacant/defensor per la bandera
+                string idAtacante = localName;
+                string idDefensor = opponentName;
 
-                    Debug.Log($"[MASTER] Col·lisió detectada. Escollit minijoc {gameIndex} de forma aleatòria.");
-
-                    // 2.5 Enviar ordre d'inici per Xarxa
-                    if (MenuManager.Instance != null)
-                    {
-                        MenuManager.Instance.EnviarMinijocStart(gameIndex, localName, opponentName);
-                    }
-
-                    // 2.6 Iniciar localment IMMEDIATAMENT (per al Master)
-                    var managers = Resources.FindObjectsOfTypeAll<MinijocUIManager>();
-                    if (managers.Length > 0)
-                    {
-                        var ui = managers[0];
-                        ui.gameObject.SetActive(true);
-                        ui.IniciarMinijoc(this.gameObject, collision.gameObject, gameIndex);
-                    }
+                if (this.banderaAgafada != null) {
+                    idAtacante = opponentName;
+                    idDefensor = localName;
+                } else if (opponent != null && opponent.banderaAgafada != null) {
+                    idAtacante = localName;
+                    idDefensor = opponentName;
                 }
-                else
-                {
-                    Debug.Log($"[CLIENT] Col·lisió detectada. Esperant que el Master ({opponentName}) iniciï el joc...");
-                }
+
+                // REFACTOR: El Host YA NO inicia localmente aquí. 
+                // Esperará a que el mensaje vuelva por red (procesado en MenuManager) para que ambos abran la UI a la vez.
+                MenuManager.Instance.EnviarMinijocStart(gameIndex, idAtacante, idDefensor);
             }
         }
     }
+
     void OnCollisionExit2D(Collision2D collision)
     {
     }
@@ -377,6 +364,22 @@ public class Player : MonoBehaviour
         ProcesarDerrota(8f);
     }
 
+    public static void LimpiarEstadoCombate()
+    {
+        ultimXoc = 0f;
+        
+        // Task 1.4 y 5: Reset de banderas de combate en todos los jugadores locales y en el UI
+        if (MinijocUIManager.Instance != null) MinijocUIManager.Instance.combatAcabat = false;
+
+        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        foreach (var p in allPlayers)
+        {
+            p.enCombate = false;
+        }
+
+        Debug.Log("[Player] Estado de combate y candado enCombate limpiados.");
+    }
+
     public void ProcesarDerrota(float durada)
     {
         if (isInvulnerable) return;
@@ -393,7 +396,8 @@ public class Player : MonoBehaviour
 
         UpdateLivesUI();
 
-        if (anim != null) anim.SetTrigger("hurt");
+        // Task 3.4: Feedback visual de daño
+        if (anim != null) anim.SetTrigger("Hurt");
 
         if (lives <= 0)
         {

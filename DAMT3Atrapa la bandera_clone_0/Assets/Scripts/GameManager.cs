@@ -15,6 +15,7 @@ public class GameManager : MonoBehaviour
     public GameObject banderaGroga;
     public GameObject banderaVerda;
     public GameObject dronePrefab;
+    public GameObject miniDinoPrefab;
 
     [System.Serializable]
     public struct SkinMapping
@@ -385,8 +386,9 @@ public class GameManager : MonoBehaviour
             Player pScript = go.GetComponent<Player>();
             if (pScript != null)
             {
+                pScript.username = msg.username; // Task 3.3: FIX CRÍTIC - Necesari per a minijocs
                 pScript.equip = GetTeamFromRoomData(msg.username);
-                Debug.Log($"[GameManager] Equip assignat a jugador remot {msg.username}: {pScript.equip}");
+                Debug.Log($"[GameManager] Jugador remot {msg.username} configurat completament.");
             }
 
             rp.Configurar(msg.username);
