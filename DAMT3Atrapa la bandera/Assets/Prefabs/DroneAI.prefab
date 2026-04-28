@@ -15,8 +15,8 @@ GameObject:
   - component: {fileID: 4161262842696024023}
   - component: {fileID: 6230490131544064548}
   - component: {fileID: 6633393336447374153}
-  - component: {fileID: 5608657171396647815}
-  - component: {fileID: 7515788501360205385}
+  - component: {fileID: 5701013263993930050}
+  - component: {fileID: 7867280800349906895}
   m_Layer: 0
   m_Name: DroneAI
   m_TagString: Untagged
@@ -102,7 +102,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8520357138767744033}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -235,7 +235,7 @@ MonoBehaviour:
   m_UseChildActuators: 1
   m_DeterministicInference: 0
   m_ObservableAttributeHandling: 0
---- !u!114 &5608657171396647815
+--- !u!114 &5701013263993930050
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -244,21 +244,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 8520357138767744033}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 998a786d584efb0449b6cad7aa67bb57, type: 3}
+  m_Script: {fileID: 11500000, guid: e0ba963f2b4b4ec47891bab83e316130, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 20000
-  teamId: 
-  baseEquipo: {fileID: 0}
-  flySpeed: 4
-  maxAllowedDistance: 100
-  currentState: 0
-  targetPosition: {x: 0, y: 0}
-  portantDino: 0
---- !u!114 &7515788501360205385
+  MaxStep: 0
+  moveSpeed: 8
+  targetTag: Player
+  detectionRadius: 20
+  targetPlayer: {fileID: 0}
+  playerInSight: 0
+  trainingManager: {fileID: 0}
+--- !u!114 &7867280800349906895
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -274,10 +273,11 @@ MonoBehaviour:
   m_DetectableTags:
   - Muro
   - Suelo
-  m_RaysPerDirection: 6
-  m_MaxRayDegrees: 180
+  - Player
+  m_RaysPerDirection: 3
+  m_MaxRayDegrees: 70
   m_SphereCastRadius: 0.5
-  m_RayLength: 50
+  m_RayLength: 20
   m_RayLayerMask:
     serializedVersion: 2
     m_Bits: 4294967291

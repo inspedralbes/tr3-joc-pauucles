@@ -40,6 +40,11 @@ public class Player : MonoBehaviour
     private List<VisualElement> lifeIcons = new List<VisualElement>();
     private Vector3 posAbansDeGuanyar;
 
+    // Drone Debuff Variables
+    private float originalMoveSpeed;
+    private float originalJumpForce;
+    private bool isDebuffed = false;
+
     void Start()
     {
         if (string.IsNullOrEmpty(username)) username = WebSocketClient.LocalUsername;
@@ -50,6 +55,10 @@ public class Player : MonoBehaviour
         
         rb.freezeRotation = true; 
         defaultGravity = rb.gravityScale; // Guardem el valor inicial
+        
+        // Guardar valors originals per al debuff del dron
+        originalMoveSpeed = moveSpeed;
+        originalJumpForce = jumpForce;
 
         if (uiDocument != null && GetComponent<RemotePlayer>() == null)
         {
@@ -705,5 +714,43 @@ public class Player : MonoBehaviour
             if (hit != col && !hit.isTrigger) return true;
         }
         return false;
+    }
+
+    // --- DRONE INTERACTION ---
+    public void RecibirAtaqueDron()
+    {
+        Debug.Log("[DRON] ¡El dron te ha atrapado!");
+        
+        // 1. Quitar todas las vidas
+        lives = 0;
+        UpdateLivesUI();
+
+        // 2. Teletransportar a base
+        TornarABase();
+
+        // 3. Aplicar debuff (30s lento y salta menos)
+        if (!isDebuffed)
+        {
+            StartCoroutine(DroneDebuffCoroutine(30f));
+        }
+    }
+
+    private System.Collections.IEnumerator DroneDebuffCoroutine(float duration)
+    {
+        isDebuffed = true;
+        moveSpeed = originalMoveSpeed * 0.5f; // Mitat de velocitat
+        jumpForce = originalJumpForce * 0.6f; // Salta menys
+        
+        // Feedback visual (opcional, podríem canviar el color)
+        if (sr != null) sr.color = new Color(0.5f, 0.5f, 1f, 1f); // Tint blau/fred per indicar lentitud
+
+        yield return new WaitForSeconds(duration);
+
+        moveSpeed = originalMoveSpeed;
+        jumpForce = originalJumpForce;
+        if (sr != null) sr.color = Color.white;
+        isDebuffed = false;
+        
+        Debug.Log("[DRON] El debuff del dron ha finalizado.");
     }
 }

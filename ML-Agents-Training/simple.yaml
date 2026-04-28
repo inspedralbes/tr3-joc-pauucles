@@ -1,8 +1,8 @@
 behaviors:
-  DronAI:
+  DroneChaser:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 128
+      batch_size: 256
       buffer_size: 2048
       learning_rate: 3.0e-4
       beta: 5.0e-3
@@ -10,16 +10,13 @@ behaviors:
       lambd: 0.95
       num_epoch: 3
     network_settings:
-      normalize: false
+      normalize: true
       hidden_units: 128
       num_layers: 2
     reward_signals:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-    max_steps: 200000
-    time_horizon: 64
-    summary_freq: 2000
-
-environment_parameters:
-  spawn_distance: 5.0
+    max_steps: 10000000 # 10 Millones de pasos para que entrene mucho tiempo
+    time_horizon: 128
+    summary_freq: 10000

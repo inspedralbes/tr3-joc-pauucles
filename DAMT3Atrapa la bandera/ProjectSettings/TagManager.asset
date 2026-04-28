@@ -10,6 +10,7 @@ TagManager:
   - Dinosaurio
   - Muro
   - Suelo
+  - DroneBoundary
   layers:
   - Default
   - TransparentFX

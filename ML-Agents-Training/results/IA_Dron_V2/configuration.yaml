@@ -1,9 +1,9 @@
 default_settings: null
 behaviors:
-  DronAI:
+  DroneChaser:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 128
+      batch_size: 256
       buffer_size: 2048
       learning_rate: 0.0003
       beta: 0.005
@@ -16,7 +16,7 @@ behaviors:
       epsilon_schedule: linear
     checkpoint_interval: 500000
     network_settings:
-      normalize: false
+      normalize: true
       hidden_units: 128
       num_layers: 2
       vis_encode_type: simple
@@ -38,9 +38,9 @@ behaviors:
     init_path: null
     keep_checkpoints: 5
     even_checkpoints: false
-    max_steps: 200000
-    time_horizon: 64
-    summary_freq: 2000
+    max_steps: 10000000
+    time_horizon: 128
+    summary_freq: 10000
     threaded: false
     self_play: null
     behavioral_cloning: null
@@ -64,16 +64,7 @@ engine_settings:
   capture_frame_rate: 60
   no_graphics: false
   no_graphics_monitor: false
-environment_parameters:
-  spawn_distance:
-    curriculum:
-    - value:
-        sampler_type: constant
-        sampler_parameters:
-          seed: 2798
-          value: 5.0
-      name: spawn_distance
-      completion_criteria: null
+environment_parameters: null
 checkpoint_settings:
   run_id: IA_Dron_V2
   initialize_from: null
