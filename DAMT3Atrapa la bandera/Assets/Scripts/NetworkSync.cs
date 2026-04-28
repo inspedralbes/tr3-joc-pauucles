@@ -12,6 +12,7 @@ public class NetworkSync : MonoBehaviour
     private Vector3 lastPosition;
     private Vector3 posicioObjectiu;
     private bool isRemote = false;
+    public string idNPC = ""; // Si no es buit, som un NPC (Dron, etc)
     
     private Player localPlayer;
     private Rigidbody2D rb;
@@ -46,8 +47,16 @@ public class NetworkSync : MonoBehaviour
         lastPosition = transform.position;
         posicioObjectiu = transform.position;
 
-        // Detecció de rol: si no som el LocalPlayer del GameManager, som un remot
-        if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
+        // Detecció de rol
+        if (!string.IsNullOrEmpty(idNPC))
+        {
+            // Som un NPC. El Host és qui el mou, els altres són remots.
+            if (MenuManager.Instance != null)
+            {
+                isRemote = !MenuManager.Instance.IsHost();
+            }
+        }
+        else if (GameManager.Instance != null && GameManager.Instance.localPlayer != null)
         {
             isRemote = (GameManager.Instance.localPlayer.gameObject != this.gameObject);
         }
@@ -80,11 +89,18 @@ public class NetworkSync : MonoBehaviour
     {
         if (isRemote)
         {
+            // Task 5.2: Si tenim pare, no interpolar (Unity ja ens mou amb el pare)
+            if (transform.parent != null) return;
+
             // Lògica de suavitzat per a jugadors remots
             transform.position = Vector3.Lerp(transform.position, posicioObjectiu, Time.deltaTime * interpolationSpeed);
         }
         else
         {
+            // Task 5.2: Si som el Host/Local però tenim pare, no enviem posició pròpia
+            // (el que ens porta ja enviarà que ens porta)
+            if (transform.parent != null) return;
+
             // Lògica de transmissió per al jugador local
             float distanceMoved = Vector3.Distance(transform.position, lastPosition);
             bool timeElapsed = Time.time - lastSendTime > sendRate;
@@ -100,6 +116,10 @@ public class NetworkSync : MonoBehaviour
 
     public void RebrePosicio(float x, float y, float z = 0f)
     {
+        // Task 5.2: Si tenim un pare (algú ens porta), ignorem la posició de xarxa 
+        // per deixar que el sistema de parenting d'Unity faci la seva feina sense salts.
+        if (transform.parent != null) return;
+
         posicioObjectiu = new Vector3(x, y, z);
         
         // Si la distància és massa gran (teletransport), fem snap directe
@@ -116,15 +136,15 @@ public class NetworkSync : MonoBehaviour
             PlayerMoveMessage msg = new PlayerMoveMessage
             {
                 roomId = MenuManager.Instance.currentRoomId,
-                username = WebSocketClient.Username,
-                skin = MenuManager.Instance.currentSkin,
+                username = !string.IsNullOrEmpty(idNPC) ? idNPC : WebSocketClient.Username,
+                skin = !string.IsNullOrEmpty(idNPC) ? "NPC" : MenuManager.Instance.currentSkin,
                 x = transform.position.x,
                 y = transform.position.y,
                 z = transform.position.z,
                 flipX = sr.flipX,
-                isRunning = anim.GetBool("isRunning"),
-                isGrounded = anim.GetBool("isGrounded"),
-                isClimbing = anim.GetBool("isClimbing"),
+                isRunning = GetBoolSafe("isRunning"),
+                isGrounded = GetBoolSafe("isGrounded"),
+                isClimbing = GetBoolSafe("isClimbing"),
                 yVelocity = rb.linearVelocity.y,
                 banderaEquip = (localPlayer != null && localPlayer.banderaAgafada != null) ? 
                                localPlayer.banderaAgafada.GetComponent<Bandera>().equipPropietari : ""
@@ -133,5 +153,15 @@ public class NetworkSync : MonoBehaviour
             string json = JsonUtility.ToJson(msg);
             MenuManager.Instance.websocket.SendText(json);
         }
+    }
+
+    private bool GetBoolSafe(string name)
+    {
+        if (anim == null) return false;
+        foreach (AnimatorControllerParameter param in anim.parameters)
+        {
+            if (param.name == name) return anim.GetBool(name);
+        }
+        return false;
     }
 }

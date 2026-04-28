@@ -25,6 +25,7 @@ public class MenuManager : MonoBehaviour
     public GameData currentRoomData;
     public string currentSkin = "Woodcutter";
     public WebSocket websocket;
+    public string meuEquip; // Task 7.6: Guardar l'equip local per a consultes ràpides
 
     // Cua d'execució per al fil principal
     private readonly Queue<Action> _executionQueue = new Queue<Action>();
@@ -309,7 +310,32 @@ public class MenuManager : MonoBehaviour
                     EnqueueMainThread(() => {
                         if (GameManager.Instance != null)
                         {
-                            GameManager.Instance.UpdateRemotePlayer(moveMsg);
+                            // Si el nom comença per DRONE_ o BANDERA_, és un NPC que ja existeix
+                            if (moveMsg.username.StartsWith("DRONE_") || moveMsg.username.StartsWith("BANDERA_"))
+                            {
+                                GameObject npc = GameObject.Find(moveMsg.username);
+                                if (npc == null) 
+                                {
+                                    // Provar de buscar per tag o per component si el nom no coincideix exactament
+                                    if (moveMsg.username.StartsWith("BANDERA_"))
+                                    {
+                                        string equip = moveMsg.username.Replace("BANDERA_", "");
+                                        Bandera[] banderes = GameObject.FindObjectsByType<Bandera>(FindObjectsSortMode.None);
+                                        foreach(var b in banderes) if(b.equipPropietari == equip) { npc = b.gameObject; break; }
+                                    }
+                                }
+
+                                if (npc != null)
+                                {
+                                    NetworkSync ns = npc.GetComponent<NetworkSync>();
+                                    if (ns != null) ns.RebrePosicio(moveMsg.x, moveMsg.y, moveMsg.z);
+                                }
+                            }
+                            else
+                            {
+                                // És un jugador normal
+                                GameManager.Instance.UpdateRemotePlayer(moveMsg);
+                            }
                         }
                     });
                 }
@@ -323,16 +349,26 @@ public class MenuManager : MonoBehaviour
                 if (droneMsg != null)
                 {
                     EnqueueMainThread(() => {
-                        // Buscar el dron de l'equip corresponent
-                        DroneAI[] drones = GameObject.FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
-                        foreach (DroneAI d in drones)
+                        // Task 7.3: Buscar per nom directe (molt més ràpid)
+                        string nomDron = (droneMsg.teamId == "A") ? "DRONE_A" : "DRONE_B";
+                        GameObject droneGO = GameObject.Find(nomDron);
+                        
+                        // Respatller: Si el nom no coincideix (ex: encara es diu "Dron A(Clone)"), busquem per script
+                        if (droneGO == null)
                         {
-                            if (d.teamId == droneMsg.teamId)
-                            {
-                                DroneNetworkSync sync = d.GetComponent<DroneNetworkSync>();
-                                if (sync != null) sync.ReceiveUpdate(droneMsg);
-                                break;
-                            }
+                            DroneAI[] totsElsDrons = GameObject.FindObjectsByType<DroneAI>(FindObjectsSortMode.None);
+                            foreach(var d in totsElsDrons) if(d.teamId == droneMsg.teamId) { droneGO = d.gameObject; break; }
+                        }
+
+                        if (droneGO != null)
+                        {
+                            DroneNetworkSync sync = droneGO.GetComponent<DroneNetworkSync>();
+                            if (sync != null) sync.ReceiveUpdate(droneMsg);
+                        }
+                        else
+                        {
+                            // Log de debug per saber per què no es mouen
+                            if (Time.frameCount % 500 == 0) Debug.LogWarning($"[NETWORK] No trobo el dron de l'equip {droneMsg.teamId} per aplicar moviment!");
                         }
                     });
                 }
@@ -395,6 +431,7 @@ public class MenuManager : MonoBehaviour
                     else if (updateMsg.room.roomId == currentRoomId)
                     {
                         currentRoomData = updateMsg.room;
+                        meuEquip = IsHost() ? "A" : "B";
                         EnqueueMainThread(() =>
                         {
                             OmplirLlistaJugadors(updateMsg.room.players);
@@ -499,6 +536,7 @@ public class MenuManager : MonoBehaviour
                     WebSocketClient.ColorName = msg.color;
                     WebSocketClient.RoomId = msg.roomId;
                     currentRoomId = msg.roomId;
+                    meuEquip = msg.team; // Task 7.10: CRÍTIC - Guardar equip per al GameManager
                     Debug.Log($"Dades de partida guardades per a {msg.username}: Equip={msg.team}, Color={msg.color}, RoomId={msg.roomId}");
 
                     EnqueueMainThread(() =>

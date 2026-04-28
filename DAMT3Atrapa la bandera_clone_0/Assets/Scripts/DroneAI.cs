@@ -29,6 +29,10 @@ public class DroneAI : Agent
 
     public override void Initialize()
     {
+        // Task 5.1: Forçar noms i EQUIP per a sincronització de xarxa
+        if (gameObject.name.Contains("A")) { gameObject.name = "DRONE_A"; teamId = "A"; }
+        else if (gameObject.name.Contains("B")) { gameObject.name = "DRONE_B"; teamId = "B"; }
+
         rb = GetComponent<Rigidbody2D>();
         decisionRequester = GetComponent<Unity.MLAgents.DecisionRequester>();
         initialPosition = transform.position;
@@ -39,6 +43,10 @@ public class DroneAI : Agent
             rb.bodyType = RigidbodyType2D.Dynamic;
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
         }
+
+        // Sincronització de xarxa específica per al dron
+        DroneNetworkSync dns = GetComponent<DroneNetworkSync>();
+        if (dns == null) dns = gameObject.AddComponent<DroneNetworkSync>();
     }
 
     private void BuscarDinosaurioEquipo()
@@ -134,6 +142,13 @@ public class DroneAI : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // Task 4.1: Sincronització de Xarxa - Només el Host mou el dron
+        if (MenuManager.Instance != null && !MenuManager.Instance.IsHost()) 
+        {
+            if (decisionRequester != null && decisionRequester.enabled) decisionRequester.enabled = false;
+            return;
+        }
+
         // Task 1.3: Reposo forzado (Cerebro activo, cuerpo quieto)
         if (!portantDino && currentState == DroneState.A_Salvo)
         {
@@ -163,6 +178,9 @@ public class DroneAI : Agent
 
     private void Update()
     {
+        // Si no som el Host, no executem la lògica de IA ni de moviment
+        if (MenuManager.Instance != null && !MenuManager.Instance.IsHost()) return;
+
         DeterminarEstadoActual();
 
         // Task 3.1, 3.2, 3.3: Estabilidad del Dron (Modo Piedra)
@@ -219,8 +237,12 @@ public class DroneAI : Agent
             var netSync = dinosaurioTransform.GetComponent<NetworkSync>();
             if (netSync != null) netSync.enabled = false;
 
+            // Task 4.3: Desactivar físiques per evitar rebots (SALTOS)
+            var rbDino = dinosaurioTransform.GetComponent<Rigidbody2D>();
+            if (rbDino != null) rbDino.bodyType = RigidbodyType2D.Kinematic;
+
             dinosaurioTransform.SetParent(transform);
-            dinosaurioTransform.localPosition = Vector3.zero;
+            dinosaurioTransform.localPosition = new Vector3(0, -0.5f, 0); // Una mica per sota del dron
             portantDino = true;
         }
     }

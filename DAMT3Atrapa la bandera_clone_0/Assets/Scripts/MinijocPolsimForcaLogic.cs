@@ -139,8 +139,8 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         if (textResultat != null) 
             textResultat.text = "¡FIN!";
 
-        // El primer que acaba envia el resultat (Task 2.3)
-        if (MenuManager.Instance != null)
+        // Task 7.2: Només el Host envia el resultat per evitar conflictes
+        if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
         {
             MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
         }

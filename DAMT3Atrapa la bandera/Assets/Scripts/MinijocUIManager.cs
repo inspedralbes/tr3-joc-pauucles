@@ -126,6 +126,7 @@ public class MinijocUIManager : MonoBehaviour
         // ------------------------------------------------
 
         minijocActiu = true;
+        _combatAcabat = false; // Task 5.2: RESET CRÍTIC per a següents partides
 
         // Obtenir components Player i bloquejar moviment
         _jugador1 = g1.GetComponent<Player>();
@@ -171,6 +172,7 @@ public class MinijocUIManager : MonoBehaviour
                 {
                     contPPT.style.display = DisplayStyle.Flex;
                     MinijocPPTLLSLogic logic = GetComponent<MinijocPPTLLSLogic>() ?? gameObject.AddComponent<MinijocPPTLLSLogic>();
+                    logic.enabled = true; // Task 6.1: Activar només aquest
                     Debug.Log("[MinijocUI] Inicialitzant PPTLLS...");
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
@@ -183,6 +185,7 @@ public class MinijocUIManager : MonoBehaviour
                 {
                     contParells.style.display = DisplayStyle.Flex;
                     MinijocParellsSenarsLogic logic = GetComponent<MinijocParellsSenarsLogic>() ?? gameObject.AddComponent<MinijocParellsSenarsLogic>();
+                    logic.enabled = true; // Task 6.1: Activar només aquest
                     Debug.Log("[MinijocUI] Inicialitzant ParellsSenars...");
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
@@ -195,6 +198,7 @@ public class MinijocUIManager : MonoBehaviour
                 {
                     contAtura.style.display = DisplayStyle.Flex;
                     MinijocAturaBarraLogic logic = GetComponent<MinijocAturaBarraLogic>() ?? gameObject.AddComponent<MinijocAturaBarraLogic>();
+                    logic.enabled = true; // Task 6.1: Activar només aquest
                     Debug.Log("[MinijocUI] Inicialitzant AturaBarra...");
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
@@ -208,6 +212,7 @@ public class MinijocUIManager : MonoBehaviour
                 {
                     contPols.style.display = DisplayStyle.Flex;
                     MinijocPolsimForcaLogic logic = GetComponent<MinijocPolsimForcaLogic>() ?? gameObject.AddComponent<MinijocPolsimForcaLogic>();
+                    logic.enabled = true; // Task 6.1: Activar només aquest
                     Debug.Log("[MinijocUI] Inicialitzant PolsimForca...");
                     logic.InicialitzarUI(root); 
                     logic.IniciarMinijoc(); 
@@ -221,6 +226,7 @@ public class MinijocUIManager : MonoBehaviour
                 {
                     contAcaparament.style.display = DisplayStyle.Flex;
                     MinijocAcaparamentMiradesLogic logic = GetComponent<MinijocAcaparamentMiradesLogic>() ?? gameObject.AddComponent<MinijocAcaparamentMiradesLogic>();
+                    logic.enabled = true; // Task 6.1: Activar només aquest
                     
                     bool socAtacant = (GameManager.Instance != null && GameManager.Instance.localPlayer != null) ? (GameManager.Instance.localPlayer == _atacant) : false;
                     
@@ -257,6 +263,13 @@ public class MinijocUIManager : MonoBehaviour
             var el = root.Q<VisualElement>(id);
             if (el != null) el.style.display = DisplayStyle.None;
         }
+
+        // Task 6.1: APAGAR TOTS ELS SCRIPTS DE LÒGICA per evitar interferències (EL BUG DELS FANTASMES)
+        if (GetComponent<MinijocPPTLLSLogic>() != null) GetComponent<MinijocPPTLLSLogic>().enabled = false;
+        if (GetComponent<MinijocParellsSenarsLogic>() != null) GetComponent<MinijocParellsSenarsLogic>().enabled = false;
+        if (GetComponent<MinijocAturaBarraLogic>() != null) GetComponent<MinijocAturaBarraLogic>().enabled = false;
+        if (GetComponent<MinijocPolsimForcaLogic>() != null) GetComponent<MinijocPolsimForcaLogic>().enabled = false;
+        if (GetComponent<MinijocAcaparamentMiradesLogic>() != null) GetComponent<MinijocAcaparamentMiradesLogic>().enabled = false;
     }
 
     public void FinalitzarCombat(string winnerUsername, string loserUsername)
@@ -277,9 +290,21 @@ public class MinijocUIManager : MonoBehaviour
 
         gameObject.SetActive(false);
 
-        // 3. EFECTE DE XOC / EMPENTA (Knockback)
-        if (_jugador1 != null && _jugador2 != null)
+        // 3. EFECTE DE XOC / EMPENTA (Knockback Selectiu)
+        if (_jugador1 != null && _jugador2 != null && winnerUsername != "Empat")
         {
+            Player pGuanyador = (winnerUsername == _jugador1.username) ? _jugador1 : _jugador2;
+            Player pPerdedor = (winnerUsername == _jugador1.username) ? _jugador2 : _jugador1;
+
+            // El perdedor rep un gran empujón
+            pPerdedor.AplicarEmpenta(pGuanyador.transform.position);
+            
+            // El guanyador rep un empujón mini o res (opcional: pGuanyador.AplicarEmpenta(pPerdedor.transform.position, 5f))
+            Debug.Log($"[Combat] Knockback aplicat a {pPerdedor.username}. {pGuanyador.username} es manté estable.");
+        }
+        else if (_jugador1 != null && _jugador2 != null)
+        {
+            // En cas d'empat, empenta a tots dos
             _jugador1.AplicarEmpenta(_jugador2.transform.position);
             _jugador2.AplicarEmpenta(_jugador1.transform.position);
         }

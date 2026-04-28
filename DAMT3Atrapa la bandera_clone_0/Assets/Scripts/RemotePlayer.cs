@@ -90,12 +90,13 @@ public class RemotePlayer : MonoBehaviour
                 {
                     // Forçar captura en aquest client pel personatge remot
                     b.transform.SetParent(this.transform);
+                    b.transform.localPosition = new Vector3(0f, 0.5f, 0f);
                     localP.banderaAgafada = b.transform;
                     
                     Rigidbody2D flagRb = b.GetComponent<Rigidbody2D>();
                     if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Kinematic;
                     
-                    Debug.Log($"[RemotePlayer] Sincronitzada bandera {equipBandera} per al jugador {username}");
+                    Debug.Log($"[RemotePlayer] Sincronitzada bandera {equipBandera} a posició local per a {username}");
                     break;
                 }
             }

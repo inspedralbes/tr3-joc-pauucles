@@ -124,17 +124,14 @@ public class DroneNetworkSync : MonoBehaviour
 
     void Update()
     {
-        // Re-verificar host periódicamente por si el cambio de sala es lento
-        if (Time.frameCount % 120 == 0 && MenuManager.Instance != null && MenuManager.Instance.currentRoomData != null)
-        {
-            string myId = MenuManager.Instance.userId?.ToLower() ?? "";
-            string hostId = MenuManager.Instance.currentRoomData.host?.ToLower() ?? "";
-            bool actuallyHost = (myId == hostId) && !string.IsNullOrEmpty(hostId);
-            if (actuallyHost != isHost) CheckHostStatus();
-        }
+        // Task 7.5: Verificació dinàmica per evitar errors d'inicialització
+        bool socHost = (MenuManager.Instance != null && MenuManager.Instance.IsHost());
 
-        if (isHost)
+        if (socHost)
         {
+            // Task 4.1: Si no tenim el dino, el busquem (per si s'ha instanciat tard)
+            if (dinosaurioTransform == null) BuscarDinosaurio();
+
             if (Time.time - lastSendTime >= sendInterval)
             {
                 lastSendTime = Time.time;
@@ -199,16 +196,19 @@ public class DroneNetworkSync : MonoBehaviour
 
     public void ReceiveUpdate(DroneMoveMessage msg)
     {
-        if (!isRemote) return;
+        // Task 7.4: Si som el Host, ignorem missatges externs sobre els nostres drons
+        if (MenuManager.Instance != null && MenuManager.Instance.IsHost()) return;
 
-        // Mantenim la Z original del dron per evitar que desaparegui darrere del fons (Z=0)
+        // Si arribem aquí, som un client o el sistema encara no sap qui som, 
+        // així que apliquem la posició rebuda per seguretat.
         targetPosition = new Vector3(msg.x, msg.y, transform.position.z);
         if (sr != null) sr.flipX = msg.flipX;
-
+        
+        // Sincronitzar estat i dino
         if (droneAI != null)
         {
             droneAI.portantDino = msg.portantDino;
-            if (Enum.TryParse(msg.state, out DroneAI.DroneState remoteState))
+            if (System.Enum.TryParse(msg.state, out DroneAI.DroneState remoteState))
             {
                 droneAI.currentState = remoteState;
             }
@@ -219,6 +219,6 @@ public class DroneNetworkSync : MonoBehaviour
 
     public bool SocHost()
     {
-        return !isRemote;
+        return (MenuManager.Instance != null && MenuManager.Instance.IsHost());
     }
 }

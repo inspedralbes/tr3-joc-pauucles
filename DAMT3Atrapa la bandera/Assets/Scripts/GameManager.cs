@@ -137,6 +137,23 @@ public class GameManager : MonoBehaviour
         GameObject go = Instantiate(prefab, Vector3.zero, Quaternion.identity);
         localPlayer = go.GetComponent<Player>();
         
+        // Task 7.2: ASSIGNAR EQUIP REAL (el que diu el servidor)
+        if (MenuManager.Instance != null && !string.IsNullOrEmpty(MenuManager.Instance.meuEquip))
+        {
+            string equipFinal = MenuManager.Instance.meuEquip;
+            if (string.IsNullOrEmpty(equipFinal))
+            {
+                Debug.LogError("[GameManager] ERROR CRÍTIC: meuEquip està BUIT al configurar el jugador local!");
+            }
+
+            localPlayer.InicialitzarJugador(username, equipFinal);
+            Debug.Log($"[GameManager] Jugador {username} inicialitzat amb EQUIP REAL: {equipFinal}");
+        }
+        else
+        {
+            Debug.LogError("[GameManager] ATENCIÓ: No s'ha pogut assignar equip al jugador local perquè MenuManager.meuEquip està buit.");
+        }
+
         // 3.2: Actualització de càmera (Cinemachine fallback)
         ActualitzarSeguimentCamera(go.transform);
 
@@ -228,11 +245,13 @@ public class GameManager : MonoBehaviour
             GameObject prefabA = GetFlagPrefab(room.teamAColor);
             if (prefabA != null)
             {
-                GameObject flagGO = Instantiate(prefabA, spawn1.position + new Vector3(2f, 0f, 0f), Quaternion.identity);
+                // Task 7.12: Allunyem la bandera del spawn cap al CENTRE (5m a la dreta)
+                GameObject flagGO = Instantiate(prefabA, spawn1.position + new Vector3(8f, 0f, 0f), Quaternion.identity);
+                flagGO.name = "BANDERA_A"; 
                 flagGO.transform.localScale = new Vector3(4f, 4f, 1f);
                 Bandera flagScript = flagGO.GetComponent<Bandera>();
                 if (flagScript != null) flagScript.equipPropietari = "A";
-                Debug.Log($"[GameManager] Bandera Equip A ({room.teamAColor}) instanciada.");
+                Debug.Log($"[GameManager] Bandera Equip A ({room.teamAColor}) instanciada a base A (moguda al centre).");
             }
         }
 
@@ -242,11 +261,13 @@ public class GameManager : MonoBehaviour
             GameObject prefabB = GetFlagPrefab(room.teamBColor);
             if (prefabB != null)
             {
-                GameObject flagGO = Instantiate(prefabB, spawn2.position + new Vector3(2f, 0f, 0f), Quaternion.identity);
+                // Task 7.12: Allunyem la bandera del spawn cap al CENTRE (5m a l'esquerra)
+                GameObject flagGO = Instantiate(prefabB, spawn2.position + new Vector3(-8f, 0f, 0f), Quaternion.identity);
+                flagGO.name = "BANDERA_B"; 
                 flagGO.transform.localScale = new Vector3(4f, 4f, 1f);
                 Bandera flagScript = flagGO.GetComponent<Bandera>();
                 if (flagScript != null) flagScript.equipPropietari = "B";
-                Debug.Log($"[GameManager] Bandera Equip B ({room.teamBColor}) instanciada.");
+                Debug.Log($"[GameManager] Bandera Equip B ({room.teamBColor}) instanciada a base B (moguda al centre).");
             }
         }
     }

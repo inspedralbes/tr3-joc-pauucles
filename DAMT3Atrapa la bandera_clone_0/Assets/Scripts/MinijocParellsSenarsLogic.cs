@@ -85,9 +85,19 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
         if (_textTemps != null) _textTemps.text = $"Temps: {Mathf.Max(0, _tempsRestant):F1}s";
 
         // 2) RESOLUCIÓN INSTANTÁNEA (Task 2.2)
-        if (_tempsRestant <= 0 || (_eleccioJ1 != null && _eleccioJ2 != null))
+        // El primer que respon correctament guanya al moment
+        if (_tempsRestant <= 0)
         {
             Resoldre();
+        }
+        else 
+        {
+            bool localRespost = (_eleccioJ1 != null);
+            bool rivalRespost = (_eleccioJ2 != null);
+
+            if (localRespost && _eleccioJ1 == respostaEsParell) Resoldre();
+            else if (rivalRespost && _eleccioJ2 == respostaEsParell) Resoldre();
+            else if (localRespost && rivalRespost) Resoldre(); // Tots dos han fallat o acabat
         }
     }
 

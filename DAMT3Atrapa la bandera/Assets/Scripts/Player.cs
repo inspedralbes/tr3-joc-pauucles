@@ -169,6 +169,16 @@ public class Player : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (isFrozen || !potMoure || (rb != null && rb.bodyType == RigidbodyType2D.Static)) 
+        {
+            if (rb != null && rb.bodyType != RigidbodyType2D.Static)
+            {
+                rb.linearVelocity = Vector2.zero;
+                if (isFrozen) rb.bodyType = RigidbodyType2D.Static;
+            }
+            return;
+        }
+
         if (rb.bodyType == RigidbodyType2D.Static) return;
 
         if (isClimbing)
@@ -270,18 +280,29 @@ public class Player : MonoBehaviour
             // 2.3 Validar lliurament de bandera a la base pròpia
             if (banderaAgafada != null)
             {
-                // REGLA: Si estamos entrenando a los drones, NO finalizamos la partida automáticamente
-                if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
-                {
-                    Debug.Log("[DRONE-TRAINING] Jugador en base con bandera. Ignorando victoria para seguir entrenando.");
-                    return;
-                }
+                Bandera scriptBandera = banderaAgafada.GetComponent<Bandera>();
+                string equipBandera = (scriptBandera != null) ? scriptBandera.equipPropietari : "";
 
-                Debug.Log("[Player] Has entrat a la teva base amb la bandera! Finalitzant partida.");
-                
-                if (GameManager.Instance != null)
+                // REGLA D'OR: Només guanyes si portes la bandera ENEMIGA a la TEVA base
+                if (!string.IsNullOrEmpty(equipBandera) && !equipBandera.Equals(this.equip, System.StringComparison.OrdinalIgnoreCase))
                 {
-                    GameManager.Instance.FinalitzarPartida(true);
+                    // REGLA: Si estamos entrenando a los drones, NO finalizamos la partida automáticamente
+                    if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+                    {
+                        Debug.Log("[DRONE-TRAINING] Jugador en base amb bandera ENEMIGA. Ignorant victoria per seguir entrenando.");
+                        return;
+                    }
+
+                    Debug.Log($"[VICTÒRIA] {username} de l'equip {this.equip} ha portat la bandera {equipBandera} a la seva base!");
+                    
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.FinalitzarPartida(true);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[Player] Estàs a la teva base amb la TEVA pròpia bandera ({equipBandera}). No contesta com a victòria!");
                 }
             }
             else
@@ -316,21 +337,29 @@ public class Player : MonoBehaviour
     public void InicialitzarJugador(string username, string team)
     {
         this.username = username;
-        Debug.Log($"Inicialitzant jugador {username} a l'equip {team}");
+        this.equip = team; // Task 7.13: CRÍTIC - Guardar l'equip!
+        Debug.Log($"[Player] Inicialitzat {username} a l'equip {this.equip}");
         
         if (uiDocument != null)
         {
             VisualElement root = uiDocument.rootVisualElement;
-            Label nameLabel = root.Q<Label>("NomUsuari"); // Busquem el label del nametag
+            Label nameLabel = root.Q<Label>("NomUsuari");
             if (nameLabel != null)
             {
                 nameLabel.text = username;
+                // Color segons equip
+                string t = team.ToLower();
+                if (t.Contains("rojo") || t.Contains("vermell") || t == "a") nameLabel.style.color = Color.red;
+                else if (t.Contains("azul") || t.Contains("blau") || t == "b") nameLabel.style.color = Color.cyan;
+                else if (t.Contains("verd") || t.Contains("green")) nameLabel.style.color = Color.green;
+                else if (t.Contains("groc") || t.Contains("yellow")) nameLabel.style.color = Color.yellow;
             }
         }
 
-        // Configurem l'idJugador segons l'equip rebut
-        if (team.ToLower() == "rojo") idJugador = 1;
-        else if (team.ToLower() == "azul") idJugador = 2;
+        // Configurem l'idJugador per a lògiques internes si cal
+        string teamLower = team.ToLower();
+        if (teamLower.Contains("rojo") || teamLower.Contains("vermell") || teamLower == "a") idJugador = 1;
+        else if (teamLower.Contains("azul") || teamLower.Contains("blau") || teamLower == "b") idJugador = 2;
     }
 
     public void WinCombat()
@@ -347,7 +376,7 @@ public class Player : MonoBehaviour
 
     public void GuanyarMinijoc()
     {
-        Debug.Log("[Player] Victoria en minijoc. Restaurat moviment total.");
+        Debug.Log($"[VICTORIA] {username} ha guanyat el minijoc. Restaurat moviment i invulnerabilitat temporal.");
         potMoure = true;
         potCombatre = true;
         isFrozen = false; // Reset instantani del flag de congelat
@@ -382,7 +411,10 @@ public class Player : MonoBehaviour
 
     public void ProcesarDerrota(float durada)
     {
-        if (isInvulnerable) return;
+        Debug.Log($"[DERROTA] {username} ha perdut el minijoc. Aplicant stun de {durada}s i restant vida.");
+        if (isInvulnerable) {
+            Debug.Log($"[DERROTA] {username} era invulnerable, no perd vida però rep el stun.");
+        }
 
         int videsAbans = lives;
         lives--;

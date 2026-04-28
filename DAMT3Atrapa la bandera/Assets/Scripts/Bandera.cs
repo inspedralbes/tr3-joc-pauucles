@@ -14,6 +14,12 @@ public class Bandera : MonoBehaviour
         posicioInicial = transform.position;
         rb = GetComponent<Rigidbody2D>();
         mySprite = GetComponent<SpriteRenderer>();
+
+        // Sincronització de xarxa per a la bandera (NPC)
+        NetworkSync ns = GetComponent<NetworkSync>();
+        if (ns == null) ns = gameObject.AddComponent<NetworkSync>();
+        ns.idNPC = "BANDERA_" + equipPropietari;
+        ns.sendRate = 0.1f;
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
@@ -28,26 +34,59 @@ public class Bandera : MonoBehaviour
             
             if (player != null)
             {
-                // NOMÉS el jugador local decideix si agafa la bandera
-                if (player.username != WebSocketClient.Username) return;
+                string elMeuUser = WebSocketClient.Username;
+                if (string.IsNullOrEmpty(elMeuUser) && MenuManager.Instance != null) elMeuUser = MenuManager.Instance.userId;
+
+                // Task 7.1: Comparació sense majúscules per evitar errors de "pau21" vs "Pau21"
+                if (string.IsNullOrEmpty(player.username) || string.IsNullOrEmpty(elMeuUser) || 
+                    !player.username.Equals(elMeuUser, System.StringComparison.OrdinalIgnoreCase)) 
+                {
+                    return;
+                }
+
+                string elMeuEquip = player.equip;
+                if (string.IsNullOrEmpty(elMeuEquip) && MenuManager.Instance != null) elMeuEquip = MenuManager.Instance.meuEquip;
+
+                // Task 7.11: Seguretat - Si no sabem l'equip, BLOQUEM (evita errors inicials)
+                if (string.IsNullOrEmpty(elMeuEquip)) return;
+
+                // Debug log per saber qui som al tocar la bandera
+                Debug.Log($"<color=cyan>[DEBUG-BANDERA]</color> Col·lisió detectada!");
+                Debug.Log($" - Jugador: {player.username}");
+                Debug.Log($" - Equip Jugador (local): {player.equip}");
+                Debug.Log($" - Equip Jugador (MenuManager): {MenuManager.Instance.meuEquip}");
+                Debug.Log($" - Propietari Bandera: {this.equipPropietari}");
 
                 // REGLA DE ORO: Mateix equip = BLOQUEIG FISIC
-                if (player.equip == equipPropietari)
+                bool esLaMeva = false;
+                if (!string.IsNullOrEmpty(elMeuEquip) && elMeuEquip.Equals(this.equipPropietari, System.StringComparison.OrdinalIgnoreCase)) esLaMeva = true;
+                
+                if (esLaMeva)
                 {
-                    Debug.Log($"[BANDERA] REBUTJAT: Ets de l'equip {player.equip}. No pots tocar aquesta bandera.");
+                    Debug.Log($"<color=red>[BANDERA]</color> REBUTJAT: {player.username} ({elMeuEquip}) ha intentat agafar la SEVA bandera ({this.equipPropietari}).");
                     
                     // Empenyem el jugador una mica enrera perquè no es quedi a sobre
                     Vector2 dirRebutj = (player.transform.position - transform.position).normalized;
                     Rigidbody2D playerRB = player.GetComponent<Rigidbody2D>();
-                    if (playerRB != null) playerRB.AddForce(dirRebutj * 10f, ForceMode2D.Impulse);
+                    if (playerRB != null) 
+                    {
+                        playerRB.linearVelocity = Vector2.zero;
+                        playerRB.AddForce(dirRebutj * 15f, ForceMode2D.Impulse);
+                    }
                     
                     return;
                 }
 
-                // Si és de l'enemic i no en portem cap, la capturem
+                // Task 7.14: Capturar la bandera si tot està OK
                 if (player.banderaAgafada == null && player.potCombatre)
                 {
+                    Debug.Log($"<color=green>[BANDERA]</color> EXIT: {player.username} ha capturat la bandera ENEMIGA ({this.equipPropietari}).");
                     Capturar(player);
+                }
+                else
+                {
+                    string rao = (player.banderaAgafada != null) ? "Ja portes una bandera" : "No pots combatre ara mateix";
+                    Debug.Log($"<color=yellow>[BANDERA]</color> No es pot capturar: {rao}");
                 }
             }
         }
@@ -55,6 +94,16 @@ public class Bandera : MonoBehaviour
 
     private void Capturar(Player player)
     {
+        // Task 7.8: Seguretat extrema - No es pot capturar la pròpia bandera mai
+        string elMeuEquip = player.equip;
+        if (string.IsNullOrEmpty(elMeuEquip) && MenuManager.Instance != null) elMeuEquip = MenuManager.Instance.meuEquip;
+
+        if (!string.IsNullOrEmpty(elMeuEquip) && elMeuEquip.Equals(this.equipPropietari, System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.LogError($"[BANDERA] BLOQUEIG CRÍTIC: {player.username} ha intentat capturar la seva pròpia bandera ({this.equipPropietari})!");
+            return;
+        }
+
         transform.SetParent(player.transform);
         player.banderaAgafada = this.transform;
         if (rb != null) rb.bodyType = RigidbodyType2D.Kinematic;
@@ -77,17 +126,32 @@ public class Bandera : MonoBehaviour
             {
                 DeixarDeSeguir();
                 holder.banderaAgafada = null;
+                return; // Task 7.7: Evitar NullReferenceException si acabem de deixar la bandera
             }
             
             // Sincronitzar flipX
             SpriteRenderer pSprite = transform.parent.GetComponentInChildren<SpriteRenderer>();
             if (pSprite != null && mySprite != null) mySprite.flipX = pSprite.flipX;
+
+            // Task 4.2: Si portem la bandera, desactivem el seu NetworkSync propi per evitar conflictes
+            NetworkSync ns = GetComponent<NetworkSync>();
+            if (ns != null && ns.enabled) ns.enabled = false;
+        }
+        else
+        {
+            // Task 4.2: Si la bandera està lliure, el NetworkSync ha d'estar actiu per sincronitzar terra/fugida
+            NetworkSync ns = GetComponent<NetworkSync>();
+            if (ns != null && !ns.enabled) ns.enabled = true;
         }
 
         if (transform.parent == null && fugint)
         {
-            transform.position = Vector3.MoveTowards(transform.position, posicioInicial, 5f * Time.deltaTime);
-            if (Vector3.Distance(transform.position, posicioInicial) < 0.1f) fugint = false;
+            // Només el Host mou la bandera cap a la base, els altres sincronitzen posició
+            if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
+            {
+                transform.position = Vector3.MoveTowards(transform.position, posicioInicial, 5f * Time.deltaTime);
+                if (Vector3.Distance(transform.position, posicioInicial) < 0.1f) fugint = false;
+            }
         }
     }
 }
