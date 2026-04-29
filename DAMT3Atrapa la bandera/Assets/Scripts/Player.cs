@@ -721,14 +721,14 @@ public class Player : MonoBehaviour
     {
         Debug.Log("[DRON] ¡El dron te ha atrapado!");
         
-        // 1. Quitar todas las vidas
-        lives = 0;
-        UpdateLivesUI();
-
-        // 2. Asegurar que el dinosaurio (bandera) vuelva a su base original
+        // 1. Deixar la bandera a la seva base PRIMER (abans del teleport)
+        // això evita que el trigger del spawn detecti que portem bandera
         DeixarBandera(tornaraBase: true);
+        
+        // 2. Assegurar que banderaAgafada és null (per evitar FinalitzarPartida en el trigger de spawn)
+        banderaAgafada = null;
 
-        // 3. Teletransportar a base
+        // 3. Teletransportar a base (restaura vides i moviment internament)
         TornarABase();
 
         // 4. Aplicar debuff (30s lento y salta menos)

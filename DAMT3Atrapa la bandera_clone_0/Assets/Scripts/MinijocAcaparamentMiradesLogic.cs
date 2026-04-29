@@ -152,8 +152,8 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
 
         if (_textResultat != null) _textResultat.text = "¡FI!";
 
-        // El primer que acaba envia el resultat (Task 2.3)
-        if (MenuManager.Instance != null)
+        // Només el Host envia el resultat (per evitar duplicats)
+        if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
         {
             MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
         }

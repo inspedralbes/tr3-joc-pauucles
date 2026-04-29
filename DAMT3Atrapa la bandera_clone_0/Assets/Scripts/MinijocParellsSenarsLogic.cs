@@ -132,7 +132,7 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
         }
         else
         {
-            if (MenuManager.Instance != null)
+            if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
             {
                 MenuManager.Instance.EnviarMinijocResult(winner, loser);
             }

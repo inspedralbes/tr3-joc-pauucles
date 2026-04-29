@@ -124,8 +124,8 @@ public class MinijocPPTLLSLogic : MonoBehaviour
                     string winner = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador1.username : MinijocUIManager.Instance.jugador2.username;
                     string loser = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador2.username : MinijocUIManager.Instance.jugador1.username;
 
-                    // Notificar al servidor (Task 1.1 y 2.3)
-                    if (MenuManager.Instance != null)
+                    // Notificar al servidor (Task 1.1 y 2.3) - Només el Host envia el resultat
+                    if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
                     {
                         MenuManager.Instance.EnviarMinijocResult(winner, loser);
                     }

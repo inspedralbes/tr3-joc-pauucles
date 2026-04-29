@@ -149,8 +149,8 @@ public class MinijocAturaBarraLogic : MonoBehaviour
 
     private void ResoldreXarxa()
     {
-        // 2) RESOLUCIÓN INSTANTÁNEA: El primer que acaba mana (Task 2.3)
-        if (MenuManager.Instance != null)
+        // 2) RESOLUCIÓN INSTANTÁNEA: Només el Host envia el resultat per evitar duplicats
+        if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
         {
             MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
         }
