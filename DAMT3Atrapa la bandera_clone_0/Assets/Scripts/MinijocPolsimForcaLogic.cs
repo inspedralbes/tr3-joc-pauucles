@@ -63,8 +63,11 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
                 return;
             }
 
-            // NOTA: La detecció d'entrada és exclusivament via el botó BtnPrem (OnBtnClicked)
-            // per evitar que les tecles d'ambdós jugadors interfereixin entre si.
+            // Task: Permetre tecla Espai o Return a més del clic
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+            {
+                OnBtnClicked();
+            }
 
             ActualitzarUI();
 

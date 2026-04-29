@@ -44,6 +44,7 @@ public class Player : MonoBehaviour
     private float originalMoveSpeed;
     private float originalJumpForce;
     private bool isDebuffed = false;
+    private Coroutine _droneDebuffCoroutine;
 
     void Start()
     {
@@ -732,10 +733,12 @@ public class Player : MonoBehaviour
         TornarABase();
 
         // 4. Aplicar debuff (30s lento y salta menos)
-        if (!isDebuffed)
+        // Resetegem el temps si ja estàvem en estat debuffed (Task: no acumular, resetejar)
+        if (_droneDebuffCoroutine != null)
         {
-            StartCoroutine(DroneDebuffCoroutine(30f));
+            StopCoroutine(_droneDebuffCoroutine);
         }
+        _droneDebuffCoroutine = StartCoroutine(DroneDebuffCoroutine(30f));
     }
 
     private System.Collections.IEnumerator DroneDebuffCoroutine(float duration)
@@ -753,6 +756,7 @@ public class Player : MonoBehaviour
         jumpForce = originalJumpForce;
         if (sr != null) sr.color = Color.white;
         isDebuffed = false;
+        _droneDebuffCoroutine = null;
         
         Debug.Log("[DRON] El debuff del dron ha finalizado.");
     }
