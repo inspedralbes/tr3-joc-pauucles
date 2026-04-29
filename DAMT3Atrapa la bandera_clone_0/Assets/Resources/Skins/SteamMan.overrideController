@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!221 &22100000
+AnimatorOverrideController:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Animador SteamMan
+  m_Controller: {fileID: 9100000, guid: 2056a24cfc056154fbd9b973d81c1e27, type: 2}
+  m_Clips:
+  - m_OriginalClip: {fileID: 7400000, guid: 9ac9ff007b93f2a4bb878186e2f2cd40, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: f7968afeb1f529043b1df5a8a5036540, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: faf1ead55ce4cb8429ed8e3d22fc4a39, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 3f4b98ecc9a91a446b598fc076b796bf, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 3af6e796cfb478e4c802d16fa2d0d541, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 37caeafb21e04e842954a155a5a001ce, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: a6c180dbb39ac3840bb5376b5e80aa6f, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 25eb7173e14c3484db5f2e674f4f84d1, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: dc878d98a6320b648945b56b21374168, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: fa9dc90a0754e534a87883cb7462a592, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: 1a2a243358f83bc40b549ba1a699d5f4, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 2cecb97cca743dd45916ad7d59869092, type: 2}
+  - m_OriginalClip: {fileID: 7400000, guid: f3fe52ad16012e241906ac59ad8a088f, type: 2}
+    m_OverrideClip: {fileID: 7400000, guid: 57a5c57dbe5ae6c49a6b8339b1d76572, type: 2}

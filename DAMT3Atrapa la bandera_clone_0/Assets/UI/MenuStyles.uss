@@ -1,0 +1,39 @@
+.unity-base-dropdown__container-inner {
+    max-height: 200px !important;
+}
+
+.finestra-principal {
+    width: 90%;
+    max-width: 500px;
+    height: 80%;
+    max-height: 600px;
+    align-items: center;
+    justify-content: center;
+    background-size: 100% 100%;
+    padding: 20px;
+    margin: 10px;
+}
+
+.unity-button {
+    font-size: 18px;
+    margin: 10px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.unity-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.unity-label {
+    -unity-font-style: bold;
+}
+
+#pantallaSalaEspera, #pantallaLobby, #pantallaLogin {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}

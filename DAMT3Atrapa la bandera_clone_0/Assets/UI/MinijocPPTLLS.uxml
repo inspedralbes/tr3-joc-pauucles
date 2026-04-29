@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ui="UnityEngine.UIElements"
+    xmlns:ue="UnityEditor.UIElements"
+    xsi:noNamespaceSchemaLocation="../../../../UIElementsSchema/UnityEngine.UIElements.xsd"
+>
+    <ui:VisualElement name="Background" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0.7); align-items: center; justify-content: center;">
+        <ui:VisualElement name="Container" style="background-color: rgba(45, 45, 45, 0.9); padding: 20px; border-radius: 10px; align-items: center;">
+            
+            <!-- Contenidor per al minijoc PPTLLS -->
+            <ui:VisualElement name="ContenidorPPTLLS" style="align-items: center;">
+                <ui:Label text="PPTLLS: Tria la teva jugada!" style="font-size: 24px; color: white; -unity-font-style: bold; margin-bottom: 20px;" />
+                <ui:VisualElement name="ButtonRowPPTLLS" style="flex-direction: row;">
+                    <ui:Button name="BtnPedra" text="Pedra" style="width: 100px; height: 40px; margin: 5px;" />
+                    <ui:Button name="BtnPaper" text="Paper" style="width: 100px; height: 40px; margin: 5px;" />
+                    <ui:Button name="BtnTisora" text="Tisora" style="width: 100px; height: 40px; margin: 5px;" />
+                    <ui:Button name="BtnLlangardaix" text="Llangardaix" style="width: 100px; height: 40px; margin: 5px;" />
+                    <ui:Button name="BtnSpock" text="Spock" style="width: 100px; height: 40px; margin: 5px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- Contenidor per al minijoc Parells o Senars -->
+            <ui:VisualElement name="ContenidorParellsSenars" style="align-items: center; display: none;">
+                <ui:Label text="Parells o Senars: Tria el teu costat!" style="font-size: 24px; color: white; -unity-font-style: bold; margin-bottom: 20px;" />
+                <ui:VisualElement name="ButtonRowPS" style="flex-direction: row;">
+                    <ui:Button name="BtnParells" text="Parells" style="width: 120px; height: 40px; margin: 5px;" />
+                    <ui:Button name="BtnSenars" text="Senars" style="width: 120px; height: 40px; margin: 5px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

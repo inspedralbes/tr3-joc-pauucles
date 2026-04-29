@@ -1,16 +1,23 @@
-# transversals
-Esquema mínim de carpetes pels projectes transversals
+# Atrapa el Dinosaure
 
-És obligatori seguir aquesta estructura tot i que la podeu ampliar.
+Projecte transversal de 2DAM curs 2025-2026.
 
-## Atenció
-Un cop comenceu heu de canviar aquesta explicació amb la corresponent al vostre projecte (utilitzant markdown)
+## Integrants
+* **Pau Uclés**
 
-# Aquest fitxer ha de contenir com a mínim:
- * Nom dels integrants
- * Nom del projecte
- * Petita descripció
- * Adreça del gestor de tasques (taiga, jira, trello...)
- * Adreça del prototip gràfic del projecte (Penpot, figma, moqups...)
- * URL de producció (quan la tingueu)
- * Estat: (explicació d'en quin punt està)
+## Descripció del Projecte
+**Atrapa el Dinosaure** (també conegut com Atrapa la Bandera Cyberpunk) és un videojoc 2D multijugador desenvolupat amb **Unity** i **Node.js**. El joc implementa una mecànica clàssica de "Atrapa la Bandera" en un entorn amb estètica Cyberpunk. Els jugadors poden competir en temps real, gestionar el seu perfil i personalitzar el seu personatge.
+
+### Característiques Principals
+* **Multijugador en temps real**: Sincronització de moviments i accions mitjançant WebSockets.
+* **Microserveis**: Arquitectura de backend escalable separant la identitat de la lògica de joc.
+* **Patró Repository**: Capa de persistència desacoblada que suporta MongoDB i memòria volàtil.
+* **IA amb ML-Agents**: Enemics i personatges autònoms amb comportaments complexos.
+
+## Gestió del Projecte
+* **Taiga**: [Projecte Atrapa el Dinosaure](https://tree.taiga.io/project/atrapa-el-dinosaure)
+
+## Documentació
+* [Manual d'Instal·lació](MANUAL_INSTALACIO.md)
+* [Patró Repository](PATTERN_REPOSITORY.md)
+* [Disseny de Microserveis](openspec/changes/refactor-to-microservices/design.md)

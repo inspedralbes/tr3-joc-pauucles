@@ -1,0 +1,157 @@
+using UnityEngine;
+using UnityEngine.UIElements;
+
+public class MinijocPolsimForcaLogic : MonoBehaviour
+{
+    private float puntuacioJ1 = 50f;
+    private float tempsRestant = 10f;
+    private bool jocActiu = false;
+    private bool faseRevelacio = false;
+    private float tempsRevelacio = 0.5f; // Task 2.1: Revelació ràpida
+
+    private Label textTemps;
+    private Label textResultat;
+    private VisualElement barraJ1;
+    private Button btnPrem;
+    private string _winner = "";
+    private string _loser = "";
+
+    public void InicialitzarUI(VisualElement root)
+    {
+        textTemps = root.Q<Label>("TextTempsPols");
+        textResultat = root.Q<Label>("TextResultatPols");
+        barraJ1 = root.Q<VisualElement>("BarraJ1Pols");
+        btnPrem = root.Q<Button>("BtnPrem");
+
+        if (btnPrem != null) 
+        {
+            btnPrem.clicked -= OnBtnClicked;
+            btnPrem.clicked += OnBtnClicked;
+        }
+
+        if (textResultat != null) textResultat.text = "";
+    }
+
+    private void OnBtnClicked()
+    {
+        int elMeuID = (MinijocUIManager.Instance.jugador1.username == WebSocketClient.LocalUsername) ? 1 : 2;
+        ActualitzarPuntuacions(elMeuID);
+    }
+
+    public void IniciarMinijoc()
+    {
+        puntuacioJ1 = 50f;
+        tempsRestant = 10f; // 1) TIMER ÚNICO: Inicia un cop (Task 1.1)
+        tempsRevelacio = 0.5f;
+        jocActiu = true;
+        faseRevelacio = false;
+        
+        ActualitzarUI();
+        if (textResultat != null) textResultat.text = "Prem ràpid!";
+    }
+
+    void Update()
+    {
+        if (!jocActiu) return;
+
+        if (!faseRevelacio)
+        {
+            tempsRestant -= Time.deltaTime;
+            if (tempsRestant <= 0)
+            {
+                FinalitzarFaseJoc();
+                return;
+            }
+
+            // Task: Permetre tecla Espai o Return a més del clic
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return))
+            {
+                OnBtnClicked();
+            }
+
+            ActualitzarUI();
+
+            // 2) RESOLUCIÓN INSTANTÁNEA: Si algú arriba al límit, s'acaba (Task 2.2)
+            if (puntuacioJ1 >= 100f || puntuacioJ1 <= 0f)
+            {
+                FinalitzarFaseJoc();
+            }
+        }
+        else
+        {
+            tempsRevelacio -= Time.deltaTime;
+            if (tempsRevelacio <= 0)
+            {
+                jocActiu = false;
+                MinijocUIManager.Instance.FinalitzarCombat(_winner, _loser);
+            }
+        }
+    }
+
+    private void ActualitzarPuntuacions(int jugador)
+    {
+        if (jugador == 1) 
+        {
+            puntuacioJ1 += 2f;
+            if (MenuManager.Instance != null) MenuManager.Instance.EnviarMinijocUpdate("CLICK");
+        }
+        else puntuacioJ1 -= 2f;
+
+        puntuacioJ1 = Mathf.Clamp(puntuacioJ1, 0f, 100f);
+    }
+
+    public void RebreActualitzacioXarxa(string data)
+    {
+        if (jocActiu && !faseRevelacio && data == "CLICK")
+        {
+            ActualitzarPuntuacions(2);
+            ActualitzarUI();
+        }
+    }
+
+    public void RebreResultatXarxa(string winner)
+    {
+    }
+
+    private void ActualitzarUI()
+    {
+        if (textTemps != null) textTemps.text = $"Temps: {Mathf.Max(0, tempsRestant):F1}s";
+        if (barraJ1 != null) barraJ1.style.width = Length.Percent(puntuacioJ1);
+    }
+
+    private void FinalitzarFaseJoc()
+    {
+        if (faseRevelacio) return;
+        faseRevelacio = true;
+        
+        _winner = "Empat";
+        _loser = "Empat"; // Task 2.3
+
+        string localName = WebSocketClient.LocalUsername;
+        string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                           ? MinijocUIManager.Instance.jugador2.username 
+                           : MinijocUIManager.Instance.jugador1.username;
+
+        if (puntuacioJ1 > 50) 
+        {
+            // Guanya el J1 del combat (atacant)
+            _winner = MinijocUIManager.Instance.jugador1.username;
+            _loser = MinijocUIManager.Instance.jugador2.username;
+        }
+        else if (puntuacioJ1 < 50) 
+        {
+            // Guanya el J2 del combat (defensor)
+            _winner = MinijocUIManager.Instance.jugador2.username;
+            _loser = MinijocUIManager.Instance.jugador1.username;
+        }
+
+        if (textResultat != null) 
+            textResultat.text = "¡FIN!";
+
+        // Task 7.2: Només el Host envia el resultat per evitar conflictes
+        if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
+        {
+            MenuManager.Instance.EnviarMinijocResult(_winner, _loser);
+        }
+    }
+}

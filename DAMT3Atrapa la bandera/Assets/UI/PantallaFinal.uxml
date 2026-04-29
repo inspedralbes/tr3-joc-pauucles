@@ -1,0 +1,6 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:VisualElement name="FonsPantalla" style="flex-grow: 1; background-color: rgb(26, 24, 24); justify-content: center; align-items: center;">
+        <ui:Label name="TextResultat" style="-unity-font-definition: url(&quot;project://database/Assets/UI/Ciberpunk_Pack/10%20Font/CyberpunkCraftpixPixel.otf?fileID=12800000&amp;guid=a4c3bec11459e6443a7f21e412ee15a6&amp;type=3#CyberpunkCraftpixPixel&quot;); -unity-font-style: bold; font-size: 32px; color: rgb(255, 255, 255);" />
+        <ui:Button name="BotoTornar" style="background-image: url(&quot;project://database/Assets/UI/Ciberpunk_Pack/3%20Icons/Icons/Icon_35.png?fileID=2800000&amp;guid=8ee12ee688e2d2d47b47a766c8708f15&amp;type=3#Icon_35&quot;); width: 69px; height: 61px;" />
+    </ui:VisualElement>
+</ui:UXML>

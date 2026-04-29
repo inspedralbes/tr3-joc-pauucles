@@ -1,0 +1,763 @@
+using UnityEngine;
+using UnityEngine.UIElements;
+using System.Collections.Generic;
+
+public class Player : MonoBehaviour
+{
+    public float moveSpeed = 5f;
+    public float jumpForce = 7f;
+    public float climbSpeed = 4f;
+    public Transform respawnPoint;
+    public UIDocument uiDocument;
+    public Nametag elMeuNametag;
+    public bool potMoure = true;
+    public bool potCombatre = true;
+    public int idJugador = 1; // 1 per a J1, 2 per a J2
+    public string equip; // "A" o "B"
+    public string username;
+    private bool enCombate = false;
+
+    // Variables per a la sincronització determinista (sense xarxa)
+    private static float ultimXoc = 0f;
+    private static int comptadorCombats = 0;
+
+    private int lives = 3;
+    private int maxLives = 3;
+    public bool isFrozen = false;
+    public bool isStunned => isFrozen; // Task 1.1: Alias para legibilidad
+    private bool isInvulnerable = false;
+    private Rigidbody2D rb;
+    private SpriteRenderer sr;
+    private Animator anim;
+    private Collider2D col; // Referència al collider
+    private float defaultGravity; // Emmagatzematge de la gravetat original
+    private bool isGrounded = false;
+    private bool isNearLadder = false;
+    private bool isClimbing = false;
+    private float coyoteTimeCounter;
+    private float jumpBufferCounter;
+    public Transform banderaAgafada;
+    private List<VisualElement> lifeIcons = new List<VisualElement>();
+    private Vector3 posAbansDeGuanyar;
+
+    // Drone Debuff Variables
+    private float originalMoveSpeed;
+    private float originalJumpForce;
+    private bool isDebuffed = false;
+    private Coroutine _droneDebuffCoroutine;
+
+    void Start()
+    {
+        if (string.IsNullOrEmpty(username)) username = WebSocketClient.LocalUsername;
+        rb = GetComponent<Rigidbody2D>();
+        sr = GetComponentInChildren<SpriteRenderer>(); // Més robust per a prefabs complexes
+        anim = GetComponentInChildren<Animator>();
+        col = GetComponent<Collider2D>();
+        
+        rb.freezeRotation = true; 
+        defaultGravity = rb.gravityScale; // Guardem el valor inicial
+        
+        // Guardar valors originals per al debuff del dron
+        originalMoveSpeed = moveSpeed;
+        originalJumpForce = jumpForce;
+
+        if (uiDocument != null && GetComponent<RemotePlayer>() == null)
+        {
+            VisualElement root = uiDocument.rootVisualElement;
+            for (int i = 1; i <= 5; i++)
+            {
+                // Búsqueda recursiva molt més potent
+                VisualElement icon = root.Query<VisualElement>("Vida" + i).First();
+                if (icon != null) {
+                    lifeIcons.Add(icon);
+                }
+            }
+            Debug.Log($"[HUD] Icones trobades: {lifeIcons.Count}");
+        }
+        else if (GetComponent<RemotePlayer>() != null)
+        {
+            Debug.Log($"[HUD] Jugador REMOT ({username}) detectat. Ignorant gestió de vides locals.");
+        }
+
+        // Configuració del Nametag si existeixen dades de sessió
+        string nomUsuariActual = string.IsNullOrEmpty(WebSocketClient.Username) ? WebSocketClient.LocalUsername : WebSocketClient.Username;
+        
+        if (elMeuNametag == null) elMeuNametag = GetComponentInChildren<Nametag>();
+        
+        if (elMeuNametag != null && !string.IsNullOrEmpty(nomUsuariActual))
+        {
+            elMeuNametag.Configurar(nomUsuariActual, WebSocketClient.ColorName);
+            Debug.Log($"[Nametag] Configurat per a {nomUsuariActual}");
+        }
+
+        // --- CARREGAR SKIN LOCAL ---
+        string skinAUsar = MenuManager.Instance != null ? MenuManager.Instance.currentSkin : PlayerPrefs.GetString("skinEquipada", "Woodcutter");
+        if (anim != null)
+        {
+            // Intentar carregar des de la nova carpeta Resources/Skins
+            RuntimeAnimatorController controller = Resources.Load<RuntimeAnimatorController>($"Skins/{skinAUsar}");
+            if (controller != null)
+            {
+                anim.runtimeAnimatorController = controller;
+                Debug.Log($"[Skin] Animator de {skinAUsar} carregat correctament des de Resources/Skins.");
+            }
+            else
+            {
+                Debug.LogWarning($"[Skin] No s'ha trobat l'animador per a {skinAUsar} a Resources/Skins. Es manté el defecte.");
+            }
+        }
+        
+        // Configuració d'equip i id
+        if (!string.IsNullOrEmpty(WebSocketClient.Team))
+        {
+            if (WebSocketClient.Team.ToLower() == "rojo" || WebSocketClient.Team.ToLower() == "vermell") idJugador = 1;
+            else if (WebSocketClient.Team.ToLower() == "azul" || WebSocketClient.Team.ToLower() == "blau") idJugador = 2;
+            equip = (idJugador == 1) ? "A" : "B";
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(equip)) equip = "A";
+            idJugador = 1;
+        }
+    }
+
+    void Update()
+    {
+        isGrounded = CheckGrounded();
+
+        if (isFrozen || !potMoure || (rb != null && rb.bodyType == RigidbodyType2D.Static)) 
+        {
+            if (rb != null && rb.bodyType != RigidbodyType2D.Static)
+                rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+            return;
+        }
+
+        float moveInput = Input.GetAxisRaw("Horizontal");
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+
+        // Rotació visual del personatge (Flip)
+        if (moveInput > 0)
+        {
+            sr.flipX = false;
+        }
+        else if (moveInput < 0)
+        {
+            sr.flipX = true;
+        }
+
+        // Lògica d'Escalada
+        float verticalInput = Input.GetAxisRaw("Vertical");
+        if (isNearLadder && Mathf.Abs(verticalInput) > 0.1f)
+        {
+            isClimbing = true;
+        }
+
+        // Jump from Ladder
+        if (isClimbing && Input.GetKeyDown(KeyCode.Space))
+        {
+            isClimbing = false;
+            rb.gravityScale = defaultGravity;
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        }
+
+        // Jump Execution
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded && !isClimbing)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            isGrounded = false;
+        }
+
+        // Actualització de l'Animator
+        if (anim != null)
+        {
+            anim.SetFloat("yVelocity", rb.linearVelocity.y);
+            anim.SetBool("isRunning", Mathf.Abs(rb.linearVelocity.x) > 0.1f);
+            anim.SetBool("isGrounded", isGrounded);
+            anim.SetBool("isClimbing", isClimbing);
+        }
+    }
+
+    void FixedUpdate()
+    {
+        if (isFrozen || !potMoure || (rb != null && rb.bodyType == RigidbodyType2D.Static)) 
+        {
+            if (rb != null && rb.bodyType != RigidbodyType2D.Static)
+            {
+                rb.linearVelocity = Vector2.zero;
+                if (isFrozen) rb.bodyType = RigidbodyType2D.Static;
+            }
+            return;
+        }
+
+        if (rb.bodyType == RigidbodyType2D.Static) return;
+
+        if (isClimbing)
+        {
+            rb.gravityScale = 0f;
+            float vInput = Input.GetAxisRaw("Vertical");
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, vInput * climbSpeed);
+        }
+        else if (!isFrozen) // Evitem sobreescriure gravityScale si estem en un estat especial (com el respawn)
+        {
+            rb.gravityScale = defaultGravity;
+        }
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player"))
+        {
+            // Task 1.2: Candado de colisión
+            if (enCombate || isFrozen || !potCombatre) return;
+
+            // Task 1.1: SOLAMENT el Host processa el xoc entre jugadors
+            if (MenuManager.Instance == null || !MenuManager.Instance.IsHost()) return;
+
+            // Tallafocs temporal per evitar doble dispar d'event (Physics Jitter)
+            if (Time.time - ultimXoc < 3f) return;
+
+            RemotePlayer rp = collision.gameObject.GetComponent<RemotePlayer>();
+            if (rp == null || string.IsNullOrEmpty(rp.username)) return;
+
+            Player opponent = collision.gameObject.GetComponent<Player>();
+            if (opponent != null && opponent.equip == this.equip) return;
+
+            if (opponent != null && opponent.equip != this.equip)
+            {
+                // Task 1.3: Marcamos estado ocupado inmediatamente para evitar colisiones múltiples
+                enCombate = true;
+
+                // El Host decideix el joc
+                ultimXoc = Time.time;
+                comptadorCombats++;
+
+                // Asegurar que tenemos un nombre válido
+                string localName = string.IsNullOrEmpty(WebSocketClient.LocalUsername) ? this.username : WebSocketClient.LocalUsername;
+                string opponentName = rp.username;
+                
+                if (string.IsNullOrEmpty(localName)) localName = "JugadorHost";
+                if (string.IsNullOrEmpty(opponentName)) opponentName = collision.gameObject.name;
+
+                // Triar el joc de forma aleatòria (Ruleta)
+                int[] jocsValids = { 1, 2, 3, 5, 6 };
+                int gameIndex = jocsValids[UnityEngine.Random.Range(0, jocsValids.Length)];
+
+                Debug.Log($"[HOST-MASTER] Col·lisió detectada ({localName} vs {opponentName}). Seleccionat minijoc {gameIndex}. Enviant START_MINIGAME...");
+
+                // Determinem atacant/defensor per la bandera
+                string idAtacante = localName;
+                string idDefensor = opponentName;
+
+                if (this.banderaAgafada != null) {
+                    idAtacante = opponentName;
+                    idDefensor = localName;
+                } else if (opponent != null && opponent.banderaAgafada != null) {
+                    idAtacante = localName;
+                    idDefensor = opponentName;
+                }
+
+                // REFACTOR: El Host YA NO inicia localmente aquí. 
+                // Esperará a que el mensaje vuelva por red (procesado en MenuManager) para que ambos abran la UI a la vez.
+                MenuManager.Instance.EnviarMinijocStart(gameIndex, idAtacante, idDefensor);
+            }
+        }
+    }
+
+    void OnCollisionExit2D(Collision2D collision)
+    {
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        // 1.2 i 1.3: Evitar que els clons (jugadors remots) disparin triggers locals (especialment la victòria)
+        if (gameObject.name.Contains("(Clone)") || GetComponent<RemotePlayer>() != null)
+        {
+            return;
+        }
+
+        // Lògica de Bases (Punts de Spawn)
+        if (collision.name.Contains("PuntSpawn_Equip"))
+        {
+            string equipoBase = collision.name.Contains("Equip1") ? "A" : "B";
+            
+            // 2.2 Ignorar si la base és de l'enemic
+            if (equipoBase != this.equip) 
+            {
+                Debug.Log($"[Player] Passant per sobre de la base enemiga ({equipoBase}). Ignorant.");
+                return;
+            }
+
+            // 2.3 Validar lliurament de bandera a la base pròpia
+            if (banderaAgafada != null)
+            {
+                Bandera scriptBandera = banderaAgafada.GetComponent<Bandera>();
+                string equipBandera = (scriptBandera != null) ? scriptBandera.equipPropietari : "";
+
+                // REGLA D'OR: Només guanyes si portes la bandera ENEMIGA a la TEVA base
+                if (!string.IsNullOrEmpty(equipBandera) && !equipBandera.Equals(this.equip, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    // REGLA: Si estamos entrenando a los drones, NO finalizamos la partida automáticamente
+                    if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+                    {
+                        Debug.Log("[DRONE-TRAINING] Jugador en base amb bandera ENEMIGA. Ignorant victoria per seguir entrenando.");
+                        return;
+                    }
+
+                    Debug.Log($"[VICTÒRIA] {username} de l'equip {this.equip} ha portat la bandera {equipBandera} a la seva base!");
+                    
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.FinalitzarPartida(true);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[Player] Estàs a la teva base amb la TEVA pròpia bandera ({equipBandera}). No contesta com a victòria!");
+                }
+            }
+            else
+            {
+                Debug.Log("[Player] Estàs a la teva base, però no portes cap bandera.");
+            }
+            return;
+        }
+
+        // Altres triggers (escales, etc.)
+        if (collision.CompareTag("ZonaEscalera"))
+        {
+            isNearLadder = true;
+        }
+    }
+
+    void OnTriggerExit2D(Collider2D other)
+    {
+        if (other == null || other.gameObject == null) return;
+
+        if (other.CompareTag("ZonaEscalera"))
+        {
+            isNearLadder = false;
+            isClimbing = false;
+            if (rb != null)
+            {
+                rb.gravityScale = defaultGravity;
+            }
+        }
+    }
+
+    public void InicialitzarJugador(string username, string team)
+    {
+        this.username = username;
+        this.equip = team; // Task 7.13: CRÍTIC - Guardar l'equip!
+        Debug.Log($"[Player] Inicialitzat {username} a l'equip {this.equip}");
+        
+        if (uiDocument != null)
+        {
+            VisualElement root = uiDocument.rootVisualElement;
+            Label nameLabel = root.Q<Label>("NomUsuari");
+            if (nameLabel != null)
+            {
+                nameLabel.text = username;
+                // Color segons equip
+                string t = team.ToLower();
+                if (t.Contains("rojo") || t.Contains("vermell") || t == "a") nameLabel.style.color = Color.red;
+                else if (t.Contains("azul") || t.Contains("blau") || t == "b") nameLabel.style.color = Color.cyan;
+                else if (t.Contains("verd") || t.Contains("green")) nameLabel.style.color = Color.green;
+                else if (t.Contains("groc") || t.Contains("yellow")) nameLabel.style.color = Color.yellow;
+            }
+        }
+
+        // Configurem l'idJugador per a lògiques internes si cal
+        string teamLower = team.ToLower();
+        if (teamLower.Contains("rojo") || teamLower.Contains("vermell") || teamLower == "a") idJugador = 1;
+        else if (teamLower.Contains("azul") || teamLower.Contains("blau") || teamLower == "b") idJugador = 2;
+    }
+
+    public void WinCombat()
+    {
+        GuanyarMinijoc();
+        StartCoroutine(HandleWinCoroutine(5));
+    }
+
+    public void LoseCombat()
+    {
+        // Reduir vida (Només una vegada) i iniciar procés de derrota
+        ProcesarDerrota(8f);
+    }
+
+    public void GuanyarMinijoc()
+    {
+        Debug.Log($"[VICTORIA] {username} ha guanyat el minijoc. Restaurat moviment i invulnerabilitat temporal.");
+        potMoure = true;
+        potCombatre = true;
+        isFrozen = false; // Reset instantani del flag de congelat
+        
+        if (rb != null) {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.gravityScale = defaultGravity;
+            rb.linearVelocity = Vector2.zero; // Limpiar inèrcies estranyes
+        }
+    }
+
+    public void PerdreMinijoc()
+    {
+        ProcesarDerrota(8f);
+    }
+
+    public static void LimpiarEstadoCombate()
+    {
+        ultimXoc = 0f;
+        
+        // Task 1.4 y 5: Reset de banderas de combate en todos los jugadores locales y en el UI
+        if (MinijocUIManager.Instance != null) MinijocUIManager.Instance.combatAcabat = false;
+
+        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        foreach (var p in allPlayers)
+        {
+            p.enCombate = false;
+        }
+
+        Debug.Log("[Player] Estado de combate y candado enCombate limpiados.");
+    }
+
+    public void ProcesarDerrota(float durada)
+    {
+        Debug.Log($"[DERROTA] {username} ha perdut el minijoc. Aplicant stun de {durada}s i restant vida.");
+        if (isInvulnerable) {
+            Debug.Log($"[DERROTA] {username} era invulnerable, no perd vida però rep el stun.");
+        }
+
+        int videsAbans = lives;
+        lives--;
+        Debug.Log($"[DERROTA] {username} perd una vida. Abans: {videsAbans} -> Ara: {lives}");
+        
+        if (lives <= 0)
+        {
+            TornarABase();
+            return;
+        }
+
+        UpdateLivesUI();
+
+        // Task 3.4: Feedback visual de daño
+        if (anim != null) anim.SetTrigger("Hurt");
+
+        if (lives <= 0)
+        {
+            StartCoroutine(HandleRespawnCoroutine(45));
+        }
+        else
+        {
+            // Task 7.15: Si perdem el combat, la bandera TORNA A LA SEVA BASE AUTOMÀTICAMENT
+            DeixarBandera(tornaraBase: true);
+            AplicarEfecteVisualDerrota(durada);
+        }
+    }
+
+    public void AplicarEfecteVisualDerrota(float durada)
+    {
+        StopAllCoroutines(); 
+        StartCoroutine(RutinaDerrotaConsolidada(durada));
+    }
+
+    private System.Collections.IEnumerator RutinaDerrotaConsolidada(float temps)
+    {
+        isFrozen = true;
+        potMoure = false;
+        potCombatre = false;
+        
+        // ESPERAR UN MOMENT ABANS DE TORNAR-SE ESTÀTIC
+        // Això permet que l'impulsió del knockback s'apliqui en mode Dynamic
+        yield return new WaitForSeconds(0.3f);
+        
+        if (rb != null && isFrozen && rb.bodyType != RigidbodyType2D.Static) 
+        {
+            rb.linearVelocity = Vector2.zero; // FRENAR PRIMER
+            rb.bodyType = RigidbodyType2D.Static; // CONGELAR DESPRÉS
+        }
+
+        if (col != null) col.isTrigger = true;
+
+        float elapsed = 0f;
+        bool visible = true;
+        
+        // Seguretat per al SpriteRenderer
+        if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
+        Color originalColor = (sr != null) ? sr.color : Color.white;
+
+        while (elapsed < temps)
+        {
+            visible = !visible;
+            if (sr != null) 
+            {
+                // Vermell intens i pampallugues per indicar Stun
+                sr.color = visible ? new Color(1f, 0.2f, 0.2f, 1f) : new Color(1f, 0f, 0f, 0.3f);
+            }
+            
+            yield return new WaitForSeconds(0.15f);
+            elapsed += 0.15f;
+        }
+
+        if (sr != null) sr.color = originalColor;
+        isFrozen = false;
+        if (col != null) col.isTrigger = false;
+        
+        if (rb != null) {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.gravityScale = defaultGravity;
+        }
+
+        potMoure = true;
+        potCombatre = true;
+
+        Debug.Log("[Player] Estat de STUN finalitzat. Jugador recuperat.");
+    }
+
+    public void TornarABase()
+    {
+        Debug.Log($"[RESPAWN] {username} ha mort. Tornant a la base de l'equip {equip}.");
+        
+        // Reset de vides local
+        lives = maxLives;
+        UpdateLivesUI();
+
+        // Trobar punt de spawn
+        string spawnName = (equip == "A" || equip == "1") ? "PuntSpawn_Equip1" : "PuntSpawn_Equip2";
+        GameObject spawnPoint = GameObject.Find(spawnName);
+        
+        if (spawnPoint != null)
+        {
+            transform.position = spawnPoint.transform.position;
+            // Si porta bandera, la deixa
+            DeixarBandera();
+        }
+        else
+        {
+            Debug.LogWarning($"[RESPAWN] No s'ha trobat el punt de spawn: {spawnName}");
+            // Fallback: usar el respawnPoint assignat si existeix
+            if (respawnPoint != null) transform.position = respawnPoint.position;
+        }
+
+        // Recuperar moviment
+        GuanyarMinijoc(); 
+    }
+
+    public void FinalitzarCombat()
+    {
+        // No restaurem potMoure aquí per no interrompre el STUN del perdedor
+        StartCoroutine(CombatCooldownCoroutine(4f));
+    }
+
+    public void AplicarEmpenta(Vector2 rivalPos)
+    {
+        if (rb == null) return;
+
+        if (rb.bodyType == RigidbodyType2D.Static) 
+        {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            StartCoroutine(TornarAStaticDespresDEmpenta());
+        }
+
+        Vector2 dir = ((Vector2)transform.position - rivalPos).normalized;
+        if (dir == Vector2.zero) dir = Random.insideUnitCircle.normalized;
+        
+        // Augmentem la força de l'empenta a 25f per a més "juice" visual
+        rb.linearVelocity = Vector2.zero; // Netejar velocitat actual
+        rb.AddForce(dir * 25f, ForceMode2D.Impulse);
+        Debug.Log($"[Combat] Aplicant Knockback: {dir * 25f}");
+    }
+
+    private System.Collections.IEnumerator TornarAStaticDespresDEmpenta()
+    {
+        yield return new WaitForSeconds(0.3f);
+        if (isFrozen && rb != null) rb.bodyType = RigidbodyType2D.Static;
+    }
+
+    public void DeixarBandera(Vector3? dropOffset = null, bool tornaraBase = false)
+    {
+        if (banderaAgafada != null)
+        {
+            Bandera scriptB = banderaAgafada.GetComponent<Bandera>();
+            if (scriptB != null)
+            {
+                if (tornaraBase)
+                {
+                    scriptB.ResetABase();
+                }
+                else
+                {
+                    scriptB.DeixarDeSeguir();
+                    if (dropOffset.HasValue)
+                    {
+                        banderaAgafada.position += dropOffset.Value;
+                    }
+                    
+                    Rigidbody2D flagRb = banderaAgafada.GetComponent<Rigidbody2D>();
+                    if (flagRb != null) flagRb.bodyType = RigidbodyType2D.Dynamic;
+                }
+            }
+            banderaAgafada = null;
+        }
+    }
+
+    private System.Collections.IEnumerator CombatCooldownCoroutine(float seconds)
+    {
+        potCombatre = false;
+        yield return new WaitForSeconds(seconds);
+        potCombatre = true;
+    }
+
+    private void UpdateLivesUI()
+    {
+        // Guard de seguretat: Només el jugador local pot tocar la UI global de vides
+        if (GetComponent<RemotePlayer>() != null || uiDocument == null) return;
+
+        VisualElement root = uiDocument.rootVisualElement;
+        if (root == null) return;
+
+        // 1. Cercar o crear el contenidor absolut HUD_Vides
+        VisualElement hudVides = root.Q<VisualElement>("HUD_Vides");
+        if (hudVides == null)
+        {
+            hudVides = new VisualElement();
+            hudVides.name = "HUD_Vides";
+            hudVides.style.position = Position.Absolute;
+            hudVides.style.top = 20;
+            hudVides.style.left = 20;
+            hudVides.style.flexDirection = FlexDirection.Row;
+            root.Add(hudVides);
+            Debug.Log("[HUD] Creat nou contenidor 'HUD_Vides' al root.");
+        }
+
+        // 2. Netejar i redibuixar els cors segons la vida actual
+        hudVides.Clear();
+        
+        // Intentar carregar l'sprite iconaVida des de Resources si no el tenim
+        Sprite spriteVida = Resources.Load<Sprite>("Sprites/iconaVida");
+        if (spriteVida == null)
+        {
+            // Fallback: buscar un sprite amb aquest nom a l'escena o actius carregats
+            var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+            foreach (var s in sprites) { if (s.name == "iconaVida") { spriteVida = s; break; } }
+        }
+
+        for (int i = 0; i < lives; i++)
+        {
+            VisualElement cor = new VisualElement();
+            cor.style.width = 40;
+            cor.style.height = 40;
+            cor.style.marginLeft = 5;
+            cor.style.marginRight = 5;
+            
+            if (spriteVida != null)
+            {
+                cor.style.backgroundImage = new StyleBackground(spriteVida);
+            }
+            else
+            {
+                cor.style.backgroundColor = Color.red; // Fallback visual
+            }
+            
+            hudVides.Add(cor);
+        }
+
+        Debug.Log($"[HUD] Actualitzat HUD de vides: {lives} cors dibuixats.");
+    }
+
+    private System.Collections.IEnumerator HandleWinCoroutine(int duration)
+    {
+        isInvulnerable = true;
+        Color originalColor = sr.color;
+        sr.color = Color.yellow;
+
+        yield return new WaitForSeconds(duration);
+
+        sr.color = originalColor;
+        isInvulnerable = false;
+    }
+
+
+    private System.Collections.IEnumerator HandleRespawnCoroutine(int duration)
+    {
+        if (anim != null) anim.SetBool("isDead", true);
+        potMoure = false;
+        isFrozen = true;
+        if (col != null) col.isTrigger = true; 
+        rb.gravityScale = 0; 
+        
+        Color originalColor = sr.color;
+        sr.color = Color.black;
+
+        if (respawnPoint != null)
+        {
+            transform.position = respawnPoint.position;
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        lives = maxLives;
+        UpdateLivesUI();
+        sr.color = originalColor;
+        isFrozen = false;
+        if (col != null) col.isTrigger = false;
+        rb.gravityScale = defaultGravity;
+        if (anim != null) anim.SetBool("isDead", false);
+        potMoure = true;
+    }
+
+    private bool CheckGrounded()
+    {
+        Bounds bounds = col.bounds;
+        Vector2 origin = new Vector2(bounds.center.x, bounds.min.y);
+        Vector2 size = new Vector2(bounds.size.x * 0.8f, 0.1f);
+        Collider2D[] hits = Physics2D.OverlapBoxAll(origin, size, 0f);
+        foreach (Collider2D hit in hits)
+        {
+            if (hit != col && !hit.isTrigger) return true;
+        }
+        return false;
+    }
+
+    // --- DRONE INTERACTION ---
+    public void RecibirAtaqueDron()
+    {
+        Debug.Log("[DRON] ¡El dron te ha atrapado!");
+        
+        // 1. Deixar la bandera a la seva base PRIMER (abans del teleport)
+        // això evita que el trigger del spawn detecti que portem bandera
+        DeixarBandera(tornaraBase: true);
+        
+        // 2. Assegurar que banderaAgafada és null (per evitar FinalitzarPartida en el trigger de spawn)
+        banderaAgafada = null;
+
+        // 3. Teletransportar a base (restaura vides i moviment internament)
+        TornarABase();
+
+        // 4. Aplicar debuff (30s lento y salta menos)
+        // Resetegem el temps si ja estàvem en estat debuffed (Task: no acumular, resetejar)
+        if (_droneDebuffCoroutine != null)
+        {
+            StopCoroutine(_droneDebuffCoroutine);
+        }
+        _droneDebuffCoroutine = StartCoroutine(DroneDebuffCoroutine(30f));
+    }
+
+    private System.Collections.IEnumerator DroneDebuffCoroutine(float duration)
+    {
+        isDebuffed = true;
+        moveSpeed = originalMoveSpeed * 0.5f; // Mitat de velocitat
+        jumpForce = originalJumpForce * 0.6f; // Salta menys
+        
+        // Feedback visual (opcional, podríem canviar el color)
+        if (sr != null) sr.color = new Color(0.5f, 0.5f, 1f, 1f); // Tint blau/fred per indicar lentitud
+
+        yield return new WaitForSeconds(duration);
+
+        moveSpeed = originalMoveSpeed;
+        jumpForce = originalJumpForce;
+        if (sr != null) sr.color = Color.white;
+        isDebuffed = false;
+        _droneDebuffCoroutine = null;
+        
+        Debug.Log("[DRON] El debuff del dron ha finalizado.");
+    }
+}

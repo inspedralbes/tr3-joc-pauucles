@@ -1,0 +1,14 @@
+services:
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mlagents-trainer
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: mlagents-learn /workspace/simple.yaml --run-id=IA_Dron_V2 --timeout-wait 300 --force
+    ports:
+      - "5004:5004"
+    tty: true
+    stdin_open: true

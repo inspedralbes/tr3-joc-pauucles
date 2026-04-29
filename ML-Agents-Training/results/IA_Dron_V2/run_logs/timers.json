@@ -1,0 +1,42 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1777378847",
+        "python_version": "3.10.12 (main, Aug 16 2023, 05:39:07) [GCC 12.2.0]",
+        "command_line_arguments": "/usr/local/bin/mlagents-learn /workspace/simple.yaml --run-id=IA_Dron_V2 --timeout-wait 300 --force",
+        "mlagents_version": "1.1.0",
+        "mlagents_envs_version": "1.1.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.2.2+cu121",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1777378901"
+    },
+    "total": 54.277019575000054,
+    "count": 1,
+    "self": 0.1135022089999893,
+    "children": {
+        "run_training.setup": {
+            "total": 0.5884106890000567,
+            "count": 1,
+            "self": 0.5884106890000567
+        },
+        "TrainerController.start_learning": {
+            "total": 53.57510667700001,
+            "count": 1,
+            "self": 0.005899361999922803,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 53.56902510400005,
+                    "count": 1,
+                    "self": 53.56902510400005
+                },
+                "TrainerController._save_models": {
+                    "total": 0.00018221100003756874,
+                    "count": 1,
+                    "self": 0.00018221100003756874
+                }
+            }
+        }
+    }
+}

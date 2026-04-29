@@ -1,0 +1,37 @@
+{
+  "name": "tr3-joc-pauucles",
+  "version": "1.0.0",
+  "description": "Esquema mínim de carpetes pels projectes transversals",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "node backend/src/identity-service.js",
+    "start:identity": "node backend/src/identity-service.js",
+    "start:game": "node backend/src/game-service.js",
+    "dev": "nodemon backend/src/identity-service.js",
+    "seed": "node backend/seed.js",
+    "test:repos": "node backend/src/testRepositories.js && node backend/src/testGameRepository.js && node backend/src/testResultRepository.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inspedralbes/tr3-joc-pauucles.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/inspedralbes/tr3-joc-pauucles/issues"
+  },
+  "homepage": "https://github.com/inspedralbes/tr3-joc-pauucles#readme",
+  "dependencies": {
+    "axios": "^1.15.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.12.1",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

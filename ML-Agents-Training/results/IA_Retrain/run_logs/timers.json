@@ -1,0 +1,49 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1776988305",
+        "python_version": "3.10.12 (main, Aug 16 2023, 05:39:07) [GCC 12.2.0]",
+        "command_line_arguments": "/usr/local/bin/mlagents-learn /workspace/simple.yaml --run-id=IA_Retrain --resume --timeout-wait 300",
+        "mlagents_version": "1.1.0",
+        "mlagents_envs_version": "1.1.0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.2.2+cu121",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1776988357"
+    },
+    "total": 52.24650153300172,
+    "count": 1,
+    "self": 0.13697402400066494,
+    "children": {
+        "run_training.setup": {
+            "total": 0.3075692300008086,
+            "count": 1,
+            "self": 0.3075692300008086
+        },
+        "TrainerController.start_learning": {
+            "total": 51.801958279000246,
+            "count": 1,
+            "self": 0.014926760002708761,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 49.72826102399995,
+                    "count": 1,
+                    "self": 49.72826102399995
+                },
+                "TrainerController._save_models": {
+                    "total": 2.0587704949975887,
+                    "count": 1,
+                    "self": 0.23068034299649298,
+                    "children": {
+                        "RLTrainer._checkpoint": {
+                            "total": 1.8280901520010957,
+                            "count": 1,
+                            "self": 1.8280901520010957
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
