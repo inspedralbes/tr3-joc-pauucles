@@ -124,15 +124,20 @@ public class MinijocPolsimForcaLogic : MonoBehaviour
         _winner = "Empat";
         _loser = "Empat"; // Task 2.3
 
+        string localName = WebSocketClient.LocalUsername;
+        string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                           ? MinijocUIManager.Instance.jugador2.username 
+                           : MinijocUIManager.Instance.jugador1.username;
+
         if (puntuacioJ1 > 50) 
         {
-            // Guanya el que empenyia cap a 100 (sempre el Local si no hi ha canvis)
+            // Guanya el J1 del combat (atacant)
             _winner = MinijocUIManager.Instance.jugador1.username;
             _loser = MinijocUIManager.Instance.jugador2.username;
         }
         else if (puntuacioJ1 < 50) 
         {
-            // Guanya el que empenyia cap a 0 (sempre el Remot)
+            // Guanya el J2 del combat (defensor)
             _winner = MinijocUIManager.Instance.jugador2.username;
             _loser = MinijocUIManager.Instance.jugador1.username;
         }

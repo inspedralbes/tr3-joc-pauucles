@@ -112,18 +112,20 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
         if (_eleccioJ1 == null) localCorrecte = false;
         if (_eleccioJ2 == null) rivalCorrecte = false;
 
-        string winner = "Empat";
-        string loser = "Empat"; // Task 2.3
+        string localName = WebSocketClient.LocalUsername;
+        string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                           ? MinijocUIManager.Instance.jugador2.username 
+                           : MinijocUIManager.Instance.jugador1.username;
 
         if (localCorrecte && !rivalCorrecte)
         {
-            winner = MinijocUIManager.Instance.jugador1.username;
-            loser = MinijocUIManager.Instance.jugador2.username;
+            winner = localName;
+            loser = rivalName;
         }
         else if (!localCorrecte && rivalCorrecte)
         {
-            winner = MinijocUIManager.Instance.jugador2.username;
-            loser = MinijocUIManager.Instance.jugador1.username;
+            winner = rivalName;
+            loser = localName;
         }
 
         if (winner == "Empat" && (localCorrecte || rivalCorrecte))

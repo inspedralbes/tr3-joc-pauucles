@@ -130,18 +130,23 @@ public class MinijocAturaBarraLogic : MonoBehaviour
         
         _faseRevelacio = true;
         
+        string localName = WebSocketClient.LocalUsername;
+        string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                           ? MinijocUIManager.Instance.jugador2.username 
+                           : MinijocUIManager.Instance.jugador1.username;
+
         if (dins)
         {
             // Guanya el local (Task 2.3)
-            _winner = MinijocUIManager.Instance.jugador1.username;
-            _loser = MinijocUIManager.Instance.jugador2.username;
+            _winner = localName;
+            _loser = rivalName;
             if (_textResultat != null) _textResultat.text = "DINS! Guanyes tu!";
         }
         else
         {
             // Guanya el rival (Task 2.3)
-            _winner = MinijocUIManager.Instance.jugador2.username;
-            _loser = MinijocUIManager.Instance.jugador1.username;
+            _winner = rivalName;
+            _loser = localName;
             if (_textResultat != null) _textResultat.text = "FORA! Guanya el rival!";
         }
         ResoldreXarxa();

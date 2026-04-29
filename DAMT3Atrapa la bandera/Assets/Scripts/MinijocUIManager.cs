@@ -31,6 +31,10 @@ public class MinijocUIManager : MonoBehaviour
     private bool _combatAcabat = false;
     public bool combatAcabat { get => _combatAcabat; set => _combatAcabat = value; }
 
+    // Historial per evitar repeticions (Task: no repetir el mateix minijoc)
+    private static List<int> _historialJocs = new List<int>();
+    private const int MAX_HISTORIAL = 3; 
+
     private readonly string[] _nomsMinijocs = {
         "Cap", // ID 0 no s'usa
         "PPTLLS",
@@ -158,8 +162,25 @@ public class MinijocUIManager : MonoBehaviour
         _textResultat = root.Q<Label>("TextResultat");
         if (_textResultat != null) _textResultat.text = "Iniciant combat...";
 
-        // 3.1 i 3.3: Selecció de joc autoritaria
-        _activeMinigameId = (forcarGameIndex > 0) ? forcarGameIndex : Random.Range(1, 7);
+        // 3.1 i 3.3: Selecció de joc autoritaria (Amb rotació sense repeticions)
+        if (forcarGameIndex > 0)
+        {
+            _activeMinigameId = forcarGameIndex;
+        }
+        else
+        {
+            // Intentar triar un joc que no estigui a l'historial recent
+            int[] jocsDisponibles = { 1, 2, 3, 5, 6 };
+            List<int> possibles = new List<int>();
+            foreach (int j in jocsDisponibles) if (!_historialJocs.Contains(j)) possibles.Add(j);
+
+            if (possibles.Count > 0) _activeMinigameId = possibles[Random.Range(0, possibles.Count)];
+            else _activeMinigameId = jocsDisponibles[Random.Range(0, jocsDisponibles.Length)];
+        }
+
+        // Actualitzar historial
+        _historialJocs.Add(_activeMinigameId);
+        if (_historialJocs.Count > MAX_HISTORIAL) _historialJocs.RemoveAt(0);
         
         string nomJoc = (_activeMinigameId < _nomsMinijocs.Length) ? _nomsMinijocs[_activeMinigameId] : "Desconegut";
         Debug.Log($"[MinijocUI] Preparant joc: {nomJoc} (ID: {_activeMinigameId})");

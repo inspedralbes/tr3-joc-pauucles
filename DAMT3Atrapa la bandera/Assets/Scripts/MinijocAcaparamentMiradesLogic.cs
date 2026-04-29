@@ -133,7 +133,11 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
         // Si soy defensor y coinciden, guanyaJ1 = (false != true) = true (gano). Correcto.
         bool guanyaJ1 = (_sócAtacant != coincideixen);
 
-        // Task 2.3: Identitats reals per a xarxa
+        string localName = WebSocketClient.LocalUsername;
+        string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                           ? MinijocUIManager.Instance.jugador2.username 
+                           : MinijocUIManager.Instance.jugador1.username;
+
         if (_eleccioJ1 == "Cap" && _eleccioJ2 == "Cap")
         {
             _winner = "Empat";
@@ -141,13 +145,13 @@ public class MinijocAcaparamentMiradesLogic : MonoBehaviour
         }
         else if (guanyaJ1)
         {
-            _winner = MinijocUIManager.Instance.jugador1.username;
-            _loser = MinijocUIManager.Instance.jugador2.username;
+            _winner = localName;
+            _loser = rivalName;
         }
         else
         {
-            _winner = MinijocUIManager.Instance.jugador2.username;
-            _loser = MinijocUIManager.Instance.jugador1.username;
+            _winner = rivalName;
+            _loser = localName;
         }
 
         if (_textResultat != null) _textResultat.text = "¡FI!";

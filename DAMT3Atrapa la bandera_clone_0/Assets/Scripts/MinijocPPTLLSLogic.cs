@@ -120,9 +120,13 @@ public class MinijocPPTLLSLogic : MonoBehaviour
                 {
                     jocActiu = false;
                     
-                    // Task 2.3: Usar nombres de usuario exactos (Task 1.1 de la propuesta)
-                    string winner = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador1.username : MinijocUIManager.Instance.jugador2.username;
-                    string loser = (res == ResultatMinijoc.GuanyaJugador1) ? MinijocUIManager.Instance.jugador2.username : MinijocUIManager.Instance.jugador1.username;
+                    string localName = WebSocketClient.LocalUsername;
+                    string rivalName = (MinijocUIManager.Instance.jugador1.username == localName) 
+                                       ? MinijocUIManager.Instance.jugador2.username 
+                                       : MinijocUIManager.Instance.jugador1.username;
+
+                    string winner = (res == ResultatMinijoc.GuanyaJugador1) ? localName : rivalName;
+                    string loser = (res == ResultatMinijoc.GuanyaJugador1) ? rivalName : localName;
 
                     // Notificar al servidor (Task 1.1 y 2.3) - Només el Host envia el resultat
                     if (MenuManager.Instance != null && MenuManager.Instance.IsHost())
