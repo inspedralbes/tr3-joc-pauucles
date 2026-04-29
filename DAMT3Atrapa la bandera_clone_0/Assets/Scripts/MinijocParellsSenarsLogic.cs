@@ -117,6 +117,9 @@ public class MinijocParellsSenarsLogic : MonoBehaviour
                            ? MinijocUIManager.Instance.jugador2.username 
                            : MinijocUIManager.Instance.jugador1.username;
 
+        string winner = "Empat";
+        string loser = "Empat";
+
         if (localCorrecte && !rivalCorrecte)
         {
             winner = localName;
